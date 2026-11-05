@@ -65,17 +65,16 @@ header h2{font-size:18px;font-weight:500;flex:1}
 .cell{position:absolute;display:flex;align-items:center;justify-content:center}
 .cell.dark{background:var(--board-dark)}
 .cell.light{background:var(--board-light)}
-.piece{position:absolute;border-radius:50%;cursor:pointer;transition:left .25s,top .25s;box-shadow:0 2px 6px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-weight:bold}
+.piece{position:absolute;border-radius:50%;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-weight:bold;transition:left .25s,top .25s}
 .piece.white{background:radial-gradient(circle at 30% 30%,#fff,#ccc);color:#333}
 .piece.black{background:radial-gradient(circle at 30% 30%,#555,#000);color:#fff}
 .piece.red{background:radial-gradient(circle at 30% 30%,#e74c3c,#8b0000);color:#fff}
 .piece.blue{background:radial-gradient(circle at 30% 30%,#3498db,#1a4d7a);color:#fff}
 .piece.king::after{content:"♛";font-size:.6em;color:gold;text-shadow:0 0 4px #000}
 .piece.selected{box-shadow:0 0 0 3px var(--accent),0 2px 6px rgba(0,0,0,.4)}
-.piece.hint{box-shadow:0 0 0 3px var(--ok),0 2px 6px rgba(0,0,0,.4)}
-.move-dot{position:absolute;width:35%;height:35%;border-radius:50%;background:var(--ok);opacity:.7;cursor:pointer;z-index:10;transition:all .15s}
-.move-dot:hover{opacity:1;transform:scale(1.1)}
-.move-dot.capture{background:var(--danger);width:45%;height:45%}
+.move-dot{position:absolute;border-radius:50%;background:var(--ok);opacity:.7;cursor:pointer;z-index:10;transition:all .15s}
+.move-dot:hover{opacity:1;transform:scale(1.15)}
+.move-dot.capture{background:var(--danger)}
 .game-actions{padding:10px;display:flex;gap:8px;justify-content:center;background:var(--panel);border-top:1px solid var(--border)}
 .results{padding:16px;overflow-y:auto;flex:1}
 .result-item{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -345,7 +344,7 @@ function modal(html){
 function closeModal(){document.getElementById('modal').classList.remove('active')}
 
 // ============ STATE ============
-let game=null;
+let state=null;
 let settings={theme:'dark'};
 let results=[];
 
@@ -364,7 +363,7 @@ function loadSettings(){
 function saveSettings(){localStorage.setItem('settings',JSON.stringify(settings))}
 function saveResults(){localStorage.setItem('results',JSON.stringify(results))}
 
-// ============ GAME LOGIC (Russian checkers) ============
+// ============ GAME LOGIC ============
 function idx(r,c){return r*8+c}
 function rc(i){return[Math.floor(i/8),i%8]}
 function isDark(r,c){return(r+c)%2===1}
@@ -376,14 +375,13 @@ function initBoard(){
   return b;
 }
 
-function getMoves(board,r,c,mustCapture=false){
+function getMoves(board,r,c){
   const p=board[idx(r,c)];
   if(!p)return[];
-  const moves=[];
   const captures=getCaptures(board,r,c,p,[]);
   if(captures.length>0)return captures;
-  if(mustCapture)return[];
   const dirs=p.king?[[-1,-1],[-1,1],[1,-1],[1,1]]:(p.color==='w'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]]);
+  const moves=[];
   if(p.king){
     for(const[dr,dc]of dirs){
       let nr=r+dr,nc=c+dc;
@@ -476,7 +474,7 @@ function getAllMoves(board,color){
     const p=board[i];
     if(!p||p.color!==color)continue;
     const[r,c]=rc(i);
-    const ms=getMoves(board,r,c,false);
+    const ms=getMoves(board,r,c);
     for(const m of ms){
       if(m.captures.length>0)anyCap=true;
       all.push({from:i,move:m});
@@ -509,11 +507,11 @@ function evaluate(board,rule){
   for(let i=0;i<64;i++){
     const p=board[i];if(!p)continue;
     const[r]=rc(i);
-    if(p.color==='w'){w++;if(p.king)wk++;else{wp++;const bonus=(7-r)*0.1;wp+=bonus;}}
-    else{b++;if(p.king)bk++;else{bp++;const bonus=r*0.1;bp+=bonus;}}
+    if(p.color==='w'){w++;if(p.king)wk++;else{wp+=(7-r)*0.1;}}
+    else{b++;if(p.king)bk++;else{bp+=r*0.1;}}
   }
-  const wScore=w+wk*2+wp*0.1;
-  const bScore=b+bk*2+bp*0.1;
+  const wScore=w+wk*2+wp;
+  const bScore=b+bk*2+bp;
   if(rule==='giveaway')return bScore-wScore;
   return wScore-bScore;
 }
@@ -555,12 +553,11 @@ function aiMove(board,color,level,rule){
   const moves=getAllMoves(board,color);
   if(moves.length===0)return null;
   const depth=DEPTH[level]||2;
-  let best=-Infinity,bestMove=null;
-  const nextColor=color==='w'?'b':'w';
-  const randomize=level===1&&Math.random()<0.3;
-  if(randomize){
+  if(level===1&&Math.random()<0.3){
     return moves[Math.floor(Math.random()*moves.length)];
   }
+  let best=-Infinity,bestMove=null;
+  const nextColor=color==='w'?'b':'w';
   for(const m of moves){
     const nb=applyMove(board,m.move);
     const v=minimax(nb,depth-1,-Infinity,Infinity,nextColor,rule,false);
@@ -572,8 +569,6 @@ function aiMove(board,color,level,rule){
 }
 
 // ============ GAME UI ============
-let state=null;
-
 function startGame(){
   const mode=document.querySelector('#modeGroup .opt.active').dataset.v;
   const diff=parseInt(document.querySelector('#diffGroup .opt.active').dataset.v);
@@ -596,7 +591,8 @@ function startGame(){
     history:[],
     moveCount:0,
     startTime:Date.now(),
-    aiThinking:false
+    aiThinking:false,
+    ended:false
   };
   
   document.getElementById('gameTitle').textContent=
@@ -630,7 +626,6 @@ function render(){
     d.style.top=screenR*cell+'px';
     d.style.width=cell+'px';
     d.style.height=cell+'px';
-    d.dataset.r=r;d.dataset.c=c;
     d.onclick=()=>onCellClick(r,c);
     board.appendChild(d);
   }
@@ -660,15 +655,20 @@ function render(){
     board.appendChild(d);
   }
   
+  // ИСПРАВЛЕНО: используем m.move.path и m.move.captures
   for(const m of state.legalMoves){
-    const to=m.path[m.path.length-1];
+    const to=m.move.path[m.move.path.length-1];
     const[r,c]=rc(to);
     const d=document.createElement('div');
-    d.className='move-dot'+(m.captures.length>0?' capture':'');
+    const isCapture=m.move.captures.length>0;
+    d.className='move-dot'+(isCapture?' capture':'');
+    const dotSize=isCapture?cell*0.45:cell*0.35;
     const screenR=flipped?7-r:r;
     const screenC=flipped?7-c:c;
-    d.style.left=(screenC*cell+cell*0.325)+'px';
-    d.style.top=(screenR*cell+cell*0.325)+'px';
+    d.style.left=(screenC*cell+cell/2-dotSize/2)+'px';
+    d.style.top=(screenR*cell+cell/2-dotSize/2)+'px';
+    d.style.width=dotSize+'px';
+    d.style.height=dotSize+'px';
     d.onclick=(e)=>{e.stopPropagation();doMove(m)};
     board.appendChild(d);
   }
@@ -700,13 +700,21 @@ function render(){
 }
 
 function onCellClick(r,c){
-  if(state.aiThinking)return;
+  if(state.aiThinking||state.ended)return;
   if(state.mode==='ai'&&state.turn!==state.playerColor)return;
   const i=idx(r,c);
   const p=state.board[i];
   
+  // Клик по своей шашке — выбираем её
   if(p&&((state.mode==='pvp'&&p.color===state.turn)||(state.mode==='ai'&&p.color===state.playerColor))){
     const moves=getAllMoves(state.board,state.turn).filter(m=>m.from===i);
+    if(moves.length===0){
+      // У этой шашки нет ходов — снимаем выделение
+      state.selected=null;
+      state.legalMoves=[];
+      render();
+      return;
+    }
     state.selected=i;
     state.legalMoves=moves;
     Sound.play('select');
@@ -714,17 +722,25 @@ function onCellClick(r,c){
     return;
   }
   
+  // Клик по пустой клетке или клетке с чужой шашкой — пытаемся сделать ход
   if(state.selected!==null){
-    const move=state.legalMoves.find(m=>m.path[m.path.length-1]===i);
+    const move=state.legalMoves.find(m=>m.move.path[m.move.path.length-1]===i);
     if(move){
       doMove(move);
+    }else{
+      // Клик в недопустимое место — снимаем выделение
+      state.selected=null;
+      state.legalMoves=[];
+      render();
     }
   }
 }
 
-function doMove(move){
+function doMove(moveEntry){
+  // moveEntry = {from, move}
+  const move=moveEntry.move;
   state.history.push({board:state.board.slice(),turn:state.turn});
-  state.board=applyMove(state.board,move.move);
+  state.board=applyMove(state.board,move);
   state.turn=state.turn==='w'?'b':'w';
   state.selected=null;
   state.legalMoves=[];
@@ -767,8 +783,8 @@ function checkEnd(){
     }else if(wc===0){winner='b';reason='Шашки сбиты';}
     else if(bc===0){winner='w';reason='Шашки сбиты';}
   }else{
-    if(wc===0||moves.length===0&&state.turn==='w'){winner='b';reason=wc===0?'Шашки сбиты':'Нет ходов';}
-    else if(bc===0||moves.length===0&&state.turn==='b'){winner='w';reason=bc===0?'Шашки сбиты':'Нет ходов';}
+    if(wc===0||(moves.length===0&&state.turn==='w')){winner='b';reason=wc===0?'Шашки сбиты':'Нет ходов';}
+    else if(bc===0||(moves.length===0&&state.turn==='b')){winner='w';reason=bc===0?'Шашки сбиты':'Нет ходов';}
   }
   
   if(winner){
@@ -857,7 +873,7 @@ function showResults(){
     list.innerHTML='<div class="empty">Пока нет сыгранных партий</div>';
     return;
   }
-  list.innerHTML=results.map((r,i)=>{
+  list.innerHTML=results.map((r)=>{
     const d=new Date(r.date);
     const dateStr=d.toLocaleDateString('ru-RU')+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
     const dur=r.duration?Math.floor(r.duration/60)+'м '+r.duration%60+'с':'—';
@@ -1067,20 +1083,17 @@ manifestLink.rel='manifest';
 manifestLink.href=manifestUrl;
 document.head.appendChild(manifestLink);
 
-// Apple touch icon
 const appleIcon=document.createElement('link');
 appleIcon.rel='apple-touch-icon';
 appleIcon.href=iconUrl;
 document.head.appendChild(appleIcon);
 
-// Favicon
 const favicon=document.createElement('link');
 favicon.rel='icon';
 favicon.type='image/svg+xml';
 favicon.href=iconUrl;
 document.head.appendChild(favicon);
 
-// Service Worker
 if('serviceWorker' in navigator){
   const swCode=`
     const CACHE='checkers-v1';
