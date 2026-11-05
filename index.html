@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Шашки</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"Шашки","short_name":"Шашки","start_url":".","display":"standalone","background_color":"%231a1a1a","theme_color":"%231a1a1a","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22><rect width=%22192%22 height=%22192%22 fill=%22%231a1a1a%22/><text x=%2296%22 y=%22120%22 font-size=%22100%22 text-anchor=%22middle%22 fill=%22white%22>Ш</text></svg>","sizes":"192x192","type":"image/svg+xml"}]}'>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;touch-action:manipulation}
+body{background:var(--bg);color:var(--fg);transition:background .3s,color .3s}
+:root{--bg:#f4f1ea;--fg:#2b2b2b;--board-light:#e8d4a2;--board-dark:#8b5a2b;--accent:#d4a017;--panel:#ffffff;--panel2:#ececec;--border:#c9c3b6;--danger:#c0392b;--ok:#27ae60}
+body.theme-dark{--bg:#1a1a1a;--fg:#e8e8e8;--board-light:#4a4a4a;--board-dark:#1f1f1f;--accent:#e0a82e;--panel:#262626;--panel2:#1f1f1f;--border:#3a3a3a}
+body.theme-sepia{--bg:#f0e6d2;--fg:#3d2f1f;--board-light:#e6d2a8;--board-dark:#6b4423;--accent:#b8860b;--panel:#f5ead3;--panel2:#e8dcc0;--border:#b8a078}
+#app{height:100%;width:100%;position:relative;overflow:hidden}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.screen.active{display:flex}
+.splash{align-items:center;justify-content:center;background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);color:#fff;text-align:center}
+.splash h1{font-size:clamp(48px,12vw,96px);font-weight:200;letter-spacing:8px;margin-bottom:20px;animation:fadeIn 1.5s ease}
+.splash .sub{font-size:14px;opacity:.6;letter-spacing:2px;animation:fadeIn 2s ease}
+.splash .ver{position:absolute;bottom:30px;font-size:12px;opacity:.4}
+.splash .logo{width:80px;height:80px;margin-bottom:20px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,#888);box-shadow:0 0 40px rgba(255,255,255,.3);animation:pulse 2s infinite}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+header{padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:var(--panel)}
+header h2{font-size:18px;font-weight:500;flex:1}
+.btn{background:var(--panel);color:var(--fg);border:1px solid var(--border);padding:10px 16px;border-radius:8px;font-size:15px;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn:hover{background:var(--panel2)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn.icon{padding:8px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center}
+.menu{padding:20px;gap:12px;display:flex;flex-direction:column;overflow-y:auto;flex:1}
+.menu-item{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:14px}
+.menu-item:hover{background:var(--panel2)}
+.menu-item:active{transform:scale(.98)}
+.menu-item .ic{width:40px;height:40px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.menu-item .t{font-size:16px;font-weight:500}
+.menu-item .d{font-size:13px;opacity:.6;margin-top:2px}
+.form{padding:20px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;flex:1}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;opacity:.7;font-weight:500}
+.field select,.field input{background:var(--panel);color:var(--fg);border:1px solid var(--border);padding:10px;border-radius:8px;font-size:15px;font-family:inherit}
+.radio-group{display:flex;gap:8px;flex-wrap:wrap}
+.radio-group .opt{flex:1;min-width:80px;background:var(--panel);border:1px solid var(--border);padding:10px;border-radius:8px;text-align:center;cursor:pointer;font-size:14px;transition:all .15s}
+.radio-group .opt.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.color-picker{display:flex;gap:10px;flex-wrap:wrap}
+.color-opt{width:50px;height:50px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;position:relative;display:flex;align-items:center;justify-content:center}
+.color-opt.active{border-color:var(--accent);transform:scale(1.1)}
+.color-opt .inner{width:30px;height:30px;border-radius:50%}
+.game{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.game-info{padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--panel);border-bottom:1px solid var(--border);font-size:14px;gap:8px;flex-wrap:wrap}
+.game-info .turn{display:flex;align-items:center;gap:8px}
+.game-info .dot{width:14px;height:14px;border-radius:50%;border:1px solid var(--border)}
+.game-info .score{display:flex;gap:12px;font-size:13px;opacity:.8}
+.board-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:10px;overflow:hidden}
+.board{position:relative;background:var(--board-dark);border:2px solid var(--border);border-radius:4px;box-shadow:0 4px 20px rgba(0,0,0,.3);aspect-ratio:1}
+.cell{position:absolute;display:flex;align-items:center;justify-content:center}
+.cell.dark{background:var(--board-dark)}
+.cell.light{background:var(--board-light)}
+.piece{position:absolute;border-radius:50%;cursor:pointer;transition:left .25s,top .25s;box-shadow:0 2px 6px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-weight:bold}
+.piece.white{background:radial-gradient(circle at 30% 30%,#fff,#ccc);color:#333}
+.piece.black{background:radial-gradient(circle at 30% 30%,#555,#000);color:#fff}
+.piece.red{background:radial-gradient(circle at 30% 30%,#e74c3c,#8b0000);color:#fff}
+.piece.blue{background:radial-gradient(circle at 30% 30%,#3498db,#1a4d7a);color:#fff}
+.piece.king::after{content:"♛";font-size:.6em;color:gold;text-shadow:0 0 4px #000}
+.piece.selected{box-shadow:0 0 0 3px var(--accent),0 2px 6px rgba(0,0,0,.4)}
+.piece.hint{box-shadow:0 0 0 3px var(--ok),0 2px 6px rgba(0,0,0,.4)}
+.move-dot{position:absolute;width:30%;height:30%;border-radius:50%;background:var(--ok);opacity:.6;pointer-events:none}
+.move-dot.capture{background:var(--danger);width:40%;height:40%}
+.game-actions{padding:10px;display:flex;gap:8px;justify-content:center;background:var(--panel);border-top:1px solid var(--border)}
+.results{padding:16px;overflow-y:auto;flex:1}
+.result-item{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.result-item .info{flex:1;min-width:0}
+.result-item .title{font-weight:500;font-size:14px}
+.result-item .meta{font-size:12px;opacity:.6;margin-top:2px}
+.result-item .badge{padding:4px 10px;border-radius:12px;font-size:12px;font-weight:500}
+.badge.win{background:var(--ok);color:#fff}
+.badge.loss{background:var(--danger);color:#fff}
+.badge.draw{background:#888;color:#fff}
+.empty{text-align:center;padding:40px 20px;opacity:.5}
+.modal{position:absolute;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal.active{display:flex}
+.modal-box{background:var(--panel);border-radius:14px;padding:24px;max-width:400px;width:100%;text-align:center}
+.modal-box h3{margin-bottom:12px;font-size:20px}
+.modal-box p{margin-bottom:16px;opacity:.8;font-size:14px}
+.modal-box .actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:12px;resize:vertical}
+@media (max-width:480px){
+  .menu-item{padding:14px}
+  .menu-item .ic{width:34px;height:34px;font-size:16px}
+  .btn{padding:9px 14px;font-size:14px}
+}
+</style>
+</head>
+<body class="theme-dark">
+<div id="app">
+
+<div class="screen splash active" id="splash">
+  <div class="logo"></div>
+  <h1>ШАШКИ</h1>
+  <div class="sub">разработчик SKLN</div>
+  <div class="ver">2026 · v1.0</div>
+</div>
+
+<div class="screen" id="menu">
+  <header><h2>Шашки</h2></header>
+  <div class="menu">
+    <div class="menu-item" onclick="show('setup')">
+      <div class="ic">▶</div>
+      <div><div class="t">Новая игра</div><div class="d">Начать партию</div></div>
+    </div>
+    <div class="menu-item" onclick="showResults()">
+      <div class="ic">📊</div>
+      <div><div class="t">Результаты</div><div class="d">История партий</div></div>
+    </div>
+    <div class="menu-item" onclick="show('settings')">
+      <div class="ic">⚙</div>
+      <div><div class="t">Настройки</div><div class="d">Оформление и звуки</div></div>
+    </div>
+    <div class="menu-item" onclick="showAbout()">
+      <div class="ic">ℹ</div>
+      <div><div class="t">О программе</div><div class="d">SKLN · 2026 · v1.0</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="setup">
+  <header>
+    <button class="btn icon" onclick="show('menu')">←</button>
+    <h2>Новая игра</h2>
+  </header>
+  <div class="form">
+    <div class="field">
+      <label>Режим</label>
+      <div class="radio-group" id="modeGroup">
+        <div class="opt active" data-v="ai" onclick="sel(this,'modeGroup')">С компьютером</div>
+        <div class="opt" data-v="pvp" onclick="sel(this,'modeGroup')">Два игрока</div>
+      </div>
+    </div>
+    <div class="field" id="diffField">
+      <label>Уровень сложности</label>
+      <div class="radio-group" id="diffGroup">
+        <div class="opt" data-v="1" onclick="sel(this,'diffGroup')">Лёгкий</div>
+        <div class="opt active" data-v="2" onclick="sel(this,'diffGroup')">Средний</div>
+        <div class="opt" data-v="3" onclick="sel(this,'diffGroup')">Сложный</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Вариант игры</label>
+      <div class="radio-group" id="ruleGroup">
+        <div class="opt active" data-v="normal" onclick="sel(this,'ruleGroup')">Обычные</div>
+        <div class="opt" data-v="giveaway" onclick="sel(this,'ruleGroup')">Поддавки</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Ваш цвет</label>
+      <div class="color-picker" id="colorPicker">
+        <div class="color-opt active" data-c="white" onclick="pickColor(this)"><div class="inner" style="background:radial-gradient(circle at 30% 30%,#fff,#ccc)"></div></div>
+        <div class="color-opt" data-c="black" onclick="pickColor(this)"><div class="inner" style="background:radial-gradient(circle at 30% 30%,#555,#000)"></div></div>
+        <div class="color-opt" data-c="red" onclick="pickColor(this)"><div class="inner" style="background:radial-gradient(circle at 30% 30%,#e74c3c,#8b0000)"></div></div>
+        <div class="color-opt" data-c="blue" onclick="pickColor(this)"><div class="inner" style="background:radial-gradient(circle at 30% 30%,#3498db,#1a4d7a)"></div></div>
+      </div>
+    </div>
+    <button class="btn primary" onclick="startGame()" style="margin-top:10px;padding:14px;font-size:16px">Начать игру</button>
+  </div>
+</div>
+
+<div class="screen" id="game">
+  <header>
+    <button class="btn icon" onclick="confirmExit()">←</button>
+    <h2 id="gameTitle">Партия</h2>
+    <button class="btn small" onclick="resignGame()">Сдаться</button>
+  </header>
+  <div class="game">
+    <div class="game-info">
+      <div class="turn"><div class="dot" id="turnDot"></div><span id="turnText">Ход белых</span></div>
+      <div class="score"><span id="scoreW">Б: 12</span><span id="scoreB">Ч: 12</span></div>
+    </div>
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+    <div class="game-actions">
+      <button class="btn small" onclick="undoMove()" id="undoBtn">↶ Отменить</button>
+      <button class="btn small" onclick="show('menu');endGame(false)">В меню</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="results">
+  <header>
+    <button class="btn icon" onclick="show('menu')">←</button>
+    <h2>Результаты</h2>
+    <button class="btn small" onclick="exportData()">⇩</button>
+    <button class="btn small" onclick="showImport()">⇧</button>
+  </header>
+  <div class="results" id="resultsList"></div>
+</div>
+
+<div class="screen" id="settings">
+  <header>
+    <button class="btn icon" onclick="show('menu')">←</button>
+    <h2>Настройки</h2>
+  </header>
+  <div class="form">
+    <div class="field">
+      <label>Фон</label>
+      <div class="radio-group" id="themeGroup">
+        <div class="opt" data-v="light" onclick="setTheme(this)">Светлый</div>
+        <div class="opt active" data-v="dark" onclick="setTheme(this)">Тёмный</div>
+        <div class="opt" data-v="sepia" onclick="setTheme(this)">Сепия</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Данные</label>
+      <button class="btn danger" onclick="clearData()">Очистить все результаты</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+</div>
+
+<script>
+// ============ NAV ============
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function sel(el,group){
+  document.querySelectorAll('#'+group+' .opt').forEach(o=>o.classList.remove('active'));
+  el.classList.add('active');
+  if(group==='modeGroup'){
+    document.getElementById('diffField').style.display=el.dataset.v==='ai'?'':'none';
+  }
+}
+function pickColor(el){
+  document.querySelectorAll('#colorPicker .color-opt').forEach(o=>o.classList.remove('active'));
+  el.classList.add('active');
+}
+function setTheme(el){
+  sel(el,'themeGroup');
+  document.body.className='theme-'+el.dataset.v;
+  localStorage.setItem('theme',el.dataset.v);
+  if(game)render();
+}
+function modal(html){
+  document.getElementById('modalBox').innerHTML=html;
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal(){document.getElementById('modal').classList.remove('active')}
+
+// ============ STATE ============
+let game=null;
+let settings={theme:'dark'};
+let results=[];
+
+function loadSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem('settings')||'{}');
+    Object.assign(settings,s);
+    if(settings.theme){
+      document.body.className='theme-'+settings.theme;
+      const t=document.querySelector('#themeGroup .opt[data-v="'+settings.theme+'"]');
+      if(t)sel(t,'themeGroup');
+    }
+    results=JSON.parse(localStorage.getItem('results')||'[]');
+  }catch(e){}
+}
+function saveSettings(){localStorage.setItem('settings',JSON.stringify(settings))}
+function saveResults(){localStorage.setItem('results',JSON.stringify(results))}
+
+// ============ GAME LOGIC (Russian checkers) ============
+// Board: 8x8, cells 0..63. Index = r*8+c. Only dark cells used.
+// Pieces: {color:'w'|'b', king:bool}
+// Turn: 'w' starts.
+
+function idx(r,c){return r*8+c}
+function rc(i){return [Math.floor(i/8),i%8]}
+function isDark(r,c){return (r+c)%2===1}
+
+function initBoard(){
+  const b=Array(64).fill(null);
+  for(let r=0;r<3;r++)for(let c=0;c<8;c++)if(isDark(r,c))b[idx(r,c)]={color:'b',king:false};
+  for(let r=5;r<8;r++)for(let c=0;c<8;c++)if(isDark(r,c))b[idx(r,c)]={color:'w',king:false};
+  return b;
+}
+
+function getMoves(board,r,c,mustCapture=false){
+  // Returns array of moves. Each move: {path:[indices], captures:[indices]}
+  // For simple move: path=[from,to], captures=[]
+  // For capture: path=[from,...,to], captures=[captured indices]
+  const p=board[idx(r,c)];
+  if(!p)return [];
+  const moves=[];
+  const captures=getCaptures(board,r,c,p,[]);
+  if(captures.length>0)return captures;
+  if(mustCapture)return [];
+  // Simple moves
+  const dirs=p.king?[[-1,-1],[-1,1],[1,-1],[1,1]]:(p.color==='w'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]]);
+  if(p.king){
+    for(const [dr,dc] of dirs){
+      let nr=r+dr,nc=c+dc;
+      while(nr>=0&&nr<8&&nc>=0&&nc<8){
+        const i=idx(nr,nc);
+        if(board[i])break;
+        moves.push({path:[idx(r,c),i],captures:[]});
+        nr+=dr;nc+=dc;
+      }
+    }
+  }else{
+    for(const [dr,dc] of dirs){
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>=8||nc<0||nc>=8)continue;
+      if(!board[idx(nr,nc)])moves.push({path:[idx(r,c),idx(nr,nc)],captures:[]});
+    }
+  }
+  return moves;
+}
+
+function getCaptures(board,r,c,p,visited){
+  const moves=[];
+  const isKing=p.king;
+  const dirs=[[-1,-1],[-1,1],[1,-1],[1,1]];
+  if(isKing){
+    // King can land on any empty cell beyond captured piece
+    for(const [dr,dc] of dirs){
+      let nr=r+dr,nc=c+dc;
+      while(nr>=0&&nr<8&&nc>=0&&nc<8){
+        const i=idx(nr,nc);
+        const occ=board[i];
+        if(occ){
+          if(occ.color===p.color||visited.includes(i))break;
+          // Try landing cells beyond
+          let lr=nr+dr,lc=nc+dc;
+          while(lr>=0&&lr<8&&lc>=0&&lc<8){
+            const li=idx(lr,lc);
+            if(board[li])break;
+            // Continue capture from li
+            const nb=board.slice();
+            nb[idx(r,c)]=null;
+            nb[i]=null;
+            nb[li]={...p};
+            const conts=getCaptures(nb,lr,lc,p,[...visited,i]);
+            if(conts.length>0){
+              for(const cm of conts){
+                moves.push({path:[idx(r,c),li,...cm.path.slice(1)],captures:[i,...cm.captures]});
+              }
+            }else{
+              moves.push({path:[idx(r,c),li],captures:[i]});
+            }
+            lr+=dr;lc+=dc;
+          }
+          break;
+        }
+        nr+=dr;nc+=dc;
+      }
+    }
+  }else{
+    // Man can capture backwards in Russian rules
+    for(const [dr,dc] of dirs){
+      const mr=r+dr,mc=c+dc;
+      const lr=r+2*dr,lc=c+2*dc;
+      if(lr<0||lr>=8||lc<0||lc>=8)continue;
+      const mi=idx(mr,mc),li=idx(lr,lc);
+      const mid=board[mi];
+      if(!mid||mid.color===p.color||visited.includes(mi))continue;
+      if(board[li])continue;
+      const nb=board.slice();
+      nb[idx(r,c)]=null;
+      nb[mi]=null;
+      let np={...p};
+      // Promotion during capture: if reaches last row, becomes king, but can continue capturing as king
+      if(!np.king&&((np.color==='w'&&lr===0)||(np.color==='b'&&lr===7))){
+        np.king=true;
+      }
+      nb[li]=np;
+      const conts=getCaptures(nb,lr,lc,np,[...visited,mi]);
+      if(conts.length>0){
+        for(const cm of conts){
+          moves.push({path:[idx(r,c),li,...cm.path.slice(1)],captures:[mi,...cm.captures]});
+        }
+      }else{
+        moves.push({path:[idx(r,c),li],captures:[mi]});
+      }
+    }
+  }
+  return moves;
+}
+
+function getAllMoves(board,color){
+  const all=[];
+  let anyCap=false;
+  for(let i=0;i<64;i++){
+    const p=board[i];
+    if(!p||p.color!==color)continue;
+    const [r,c]=rc(i);
+    const ms=getMoves(board,r,c,false);
+    for(const m of ms){
+      if(m.captures.length>0)anyCap=true;
+      all.push({from:i,move:m});
+    }
+  }
+  if(anyCap)return all.filter(a=>a.move.captures.length>0);
+  return all;
+}
+
+function applyMove(board,move){
+  const nb=board.slice();
+  const p=nb[move.path[0]];
+  nb[move.path[0]]=null;
+  for(const ci of move.captures)nb[ci]=null;
+  const to=move.path[move.path.length-1];
+  const [tr]=rc(to);
+  let np={...p};
+  if(!np.king&&((np.color==='w'&&tr===0)||(np.color==='b'&&tr===7)))np.king=true;
+  nb[to]=np;
+  return nb;
+}
+
+function countPieces(board,color){return board.filter(p=>p&&p.color===color).length}
+
+// ============ AI ============
+const DEPTH={1:2,2:4,3:6};
+
+function evaluate(board,rule){
+  let w=0,b=0,wk=0,bk=0,wp=0,bp=0;
+  for(let i=0;i<64;i++){
+    const p=board[i];if(!p)continue;
+    const [r]=rc(i);
+    if(p.color==='w'){w++;if(p.king)wk++;else{wp++;const bonus=(7-r)*0.1;wp+=bonus;}}
+    else{b++;if(p.king)bk++;else{bp++;const bonus=r*0.1;bp+=bonus;}}
+  }
+  const wScore=w+wk*2+wp*0.1;
+  const bScore=b+bk*2+bp*0.1;
+  if(rule==='giveaway')return bScore-wScore; // AI wants to lose pieces (AI is black by default in giveaway? we'll handle)
+  return wScore-bScore; // positive = good for white
+}
+
+function minimax(board,depth,alpha,beta,color,rule,maximizing){
+  const moves=getAllMoves(board,color);
+  if(depth===0||moves.length===0){
+    if(moves.length===0){
+      // No moves: in normal rules, player loses; in giveaway, player wins (opponent must take)
+      if(rule==='giveaway')return maximizing?1000:-1000;
+      return maximizing?-1000:1000;
+    }
+    return evaluate(board,rule)*(maximizing?1:-1);
+  }
+  const nextColor=color==='w'?'b':'w';
+  if(maximizing){
+    let best=-Infinity;
+    for(const m of moves){
+      const nb=applyMove(board,m.move);
+      const v=minimax(nb,depth-1,alpha,beta,nextColor,rule,false);
+      if(v>best)best=v;
+      if(best>alpha)alpha=best;
+      if(alpha>=beta)break;
+    }
+    return best;
+  }else{
+    let best=Infinity;
+    for(const m of moves){
+      const nb=applyMove(board,m.move);
+      const v=minimax(nb,depth-1,alpha,beta,nextColor,rule,true);
+      if(v<best)best=v;
+      if(best<beta)beta=best;
+      if(alpha>=beta)break;
+    }
+    return best;
+  }
+}
+
+function aiMove(board,color,level,rule){
+  const moves=getAllMoves(board,color);
+  if(moves.length===0)return null;
+  const depth=DEPTH[level]||2;
+  // In giveaway, AI wants to minimize its own score → maximizing=false for AI color
+  const aiMax=(rule==='normal'); // normal: AI wants to maximize white score if AI is white
+  // We'll handle perspective: evaluate returns (white-black) normally, (black-white) in giveaway
+  // So AI always maximizes
+  let best=-Infinity,bestMove=null;
+  const nextColor=color==='w'?'b':'w';
+  // Add some randomness on easy
+  const randomize=level===1&&Math.random()<0.3;
+  if(randomize){
+    return moves[Math.floor(Math.random()*moves.length)];
+  }
+  for(const m of moves){
+    const nb=applyMove(board,m.move);
+    const v=minimax(nb,depth-1,-Infinity,Infinity,nextColor,rule,false);
+    if(v>best||(v===best&&Math.random()<0.3)){
+      best=v;bestMove=m;
+    }
+  }
+  return bestMove;
+}
+
+// ============ GAME UI ============
+let state=null;
+
+function startGame(){
+  const mode=document.querySelector('#modeGroup .opt.active').dataset.v;
+  const diff=parseInt(document.querySelector('#diffGroup .opt.active').dataset.v);
+  const rule=document.querySelector('#ruleGroup .opt.active').dataset.v;
+  const color=document.querySelector('#colorPicker .color-opt.active').dataset.c;
+  
+  // Map color to piece color
+  const colorMap={white:'w',black:'b',red:'r',blue:'l'};
+  const playerColor=colorMap[color]; // 'w','b','r','l'
+  // For game logic, we use 'w' and 'b'. Player's visual color is tracked separately.
+  // Player always plays 'w' (moves first), AI plays 'b'. If user chose black, we swap perspective.
+  const playerIsWhite=(playerColor==='w'||playerColor==='r');
+  
+  state={
+    board:initBoard(),
+    turn:'w',
+    mode,rule,diff,
+    playerVisual:color, // for rendering
+    playerColor:playerIsWhite?'w':'b',
+    aiColor:playerIsWhite?'b':'w',
+    selected:null,
+    legalMoves:[],
+    history:[],
+    moveCount:0,
+    startTime:Date.now(),
+    aiThinking:false
+  };
+  
+  document.getElementById('gameTitle').textContent=
+    (rule==='giveaway'?'Поддавки · ':'')+(mode==='ai'?'vs Компьютер':'Два игрока');
+  
+  show('game');
+  render();
+  
+  if(mode==='ai'&&state.turn===state.aiColor){
+    setTimeout(doAiMove,400);
+  }
+}
+
+function render(){
+  const board=document.getElementById('board');
+  const wrap=board.parentElement;
+  const size=Math.min(wrap.clientWidth-20,wrap.clientHeight-20);
+  board.style.width=size+'px';
+  board.style.height=size+'px';
+  const cell=size/8;
+  
+  board.innerHTML='';
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const d=document.createElement('div');
+    d.className='cell '+(isDark(r,c)?'dark':'light');
+    d.style.left=c*cell+'px';
+    d.style.top=r*cell+'px';
+    d.style.width=cell+'px';
+    d.style.height=cell+'px';
+    d.dataset.r=r;d.dataset.c=c;
+    d.onclick=()=>onCellClick(r,c);
+    board.appendChild(d);
+  }
+  
+  // Pieces
+  for(let i=0;i<64;i++){
+    const p=state.board[i];if(!p)continue;
+    const [r,c]=rc(i);
+    const d=document.createElement('div');
+    let visualClass=state.playerVisual;
+    // Map: if player chose red/blue, white pieces show as that color, black as opposite
+    if(visualClass==='red')visualClass=p.color==='w'?'red':'blue';
+    else if(visualClass==='blue')visualClass=p.color==='w'?'blue':'red';
+    else visualClass=p.color;
+    d.className='piece '+visualClass+(p.king?' king':'');
+    if(state.selected===i)d.classList.add('selected');
+    d.style.left=(c*cell+cell*0.08)+'px';
+    d.style.top=(r*cell+cell*0.08)+'px';
+    d.style.width=(cell*0.84)+'px';
+    d.style.height=(cell*0.84)+'px';
+    d.style.fontSize=(cell*0.4)+'px';
+    d.onclick=(e)=>{e.stopPropagation();onCellClick(r,c)};
+    board.appendChild(d);
+  }
+  
+  // Move hints
+  for(const m of state.legalMoves){
+    const to=m.path[m.path.length-1];
+    const [r,c]=rc(to);
+    const d=document.createElement('div');
+    d.className='move-dot'+(m.captures.length>0?' capture':'');
+    d.style.left=(c*cell+cell*0.35)+'px';
+    d.style.top=(r*cell+cell*0.35)+'px';
+    d.onclick=(e)=>{e.stopPropagation();doMove(m)};
+    board.appendChild(d);
+  }
+  
+  // Info
+  const turnDot=document.getElementById('turnDot');
+  const turnText=document.getElementById('turnText');
+  const isPlayer=state.turn===state.playerColor||state.mode==='pvp';
+  let dotColor;
+  if(state.mode==='pvp'){
+    dotColor=state.turn==='w'?'#fff':'#000';
+    turnText.textContent='Ход '+(state.turn==='w'?'белых':'чёрных');
+  }else{
+    dotColor=state.turn===state.playerColor?(state.playerVisual==='white'?'#fff':state.playerVisual==='black'?'#000':state.playerVisual==='red'?'#e74c3c':'#3498db'):(state.playerVisual==='white'?'#000':state.playerVisual==='black'?'#fff':state.playerVisual==='red'?'#3498db':'#e74c3c');
+    turnText.textContent=(state.aiThinking?'Компьютер думает...':(state.turn===state.playerColor?'Ваш ход':'Ход компьютера'));
+  }
+  turnDot.style.background=dotColor;
+  
+  const wc=countPieces(state.board,'w'),bc=countPieces(state.board,'b');
+  document.getElementById('scoreW').textContent=(state.mode==='pvp'?'Б':'Вы')+': '+
+    (state.mode==='pvp'?wc:(state.playerColor==='w'?wc:bc));
+  document.getElementById('scoreB').textContent=(state.mode==='pvp'?'Ч':'AI')+': '+
+    (state.mode==='pvp'?bc:(state.playerColor==='w'?bc:wc));
+  
+  document.getElementById('undoBtn').disabled=state.history.length===0||state.aiThinking;
+}
+
+function onCellClick(r,c){
+  if(state.aiThinking)return;
+  if(state.mode==='ai'&&state.turn!==state.playerColor)return;
+  const i=idx(r,c);
+  const p=state.board[i];
+  
+  // If clicking on a hint dot, move is handled by dot onclick
+  // If clicking on own piece, select it
+  if(p&&((state.mode==='pvp'&&p.color===state.turn)||(state.mode==='ai'&&p.color===state.playerColor))){
+    const moves=getAllMoves(state.board,state.turn).filter(m=>m.from===i);
+    // In Russian checkers, if any capture is available, must capture
+    state.selected=i;
+    state.legalMoves=moves;
+    render();
+    return;
+  }
+  
+  // If clicking on empty cell with selected piece, check if it's a valid destination
+  if(state.selected!==null){
+    const move=state.legalMoves.find(m=>m.path[m.path.length-1]===i);
+    if(move){
+      doMove(move);
+    }
+  }
+}
+
+function doMove(move){
+  state.history.push({board:state.board.slice(),turn:state.turn});
+  state.board=applyMove(state.board,move.move);
+  state.turn=state.turn==='w'?'b':'w';
+  state.selected=null;
+  state.legalMoves=[];
+  state.moveCount++;
+  render();
+  checkEnd();
+  if(!state.ended&&state.mode==='ai'&&state.turn===state.aiColor){
+    setTimeout(doAiMove,300);
+  }
+}
+
+function doAiMove(){
+  if(state.ended)return;
+  state.aiThinking=true;
+  render();
+  setTimeout(()=>{
+    const m=aiMove(state.board,state.aiColor,state.diff,state.rule);
+    state.aiThinking=false;
+    if(!m){checkEnd();return;}
+    state.history.push({board:state.board.slice(),turn:state.turn});
+    state.board=applyMove(state.board,m.move);
+    state.turn=state.turn==='w'?'b':'w';
+    state.moveCount++;
+    render();
+    checkEnd();
+  },100);
+}
+
+function checkEnd(){
+  const moves=getAllMoves(state.board,state.turn);
+  const wc=countPieces(state.board,'w'),bc=countPieces(state.board,'b');
+  let winner=null,reason='';
+  
+  if(state.rule==='normal'){
+    if(moves.length===0){
+      winner=state.turn==='w'?'b':'w';
+      reason='Нет ходов';
+    }else if(wc===0){winner='b';reason='Шашки сбиты';}
+    else if(bc===0){winner='w';reason='Шашки сбиты';}
+  }else{
+    // Поддавки: проигрывает тот, кто остался без шашек или не может ходить
+    if(wc===0||moves.length===0&&state.turn==='w'){winner='b';reason=wc===0?'Шашки сбиты':'Нет ходов';}
+    else if(bc===0||moves.length===0&&state.turn==='b'){winner='w';reason=bc===0?'Шашки сбиты':'Нет ходов';}
+  }
+  
+  if(winner){
+    state.ended=true;
+    const duration=Math.floor((Date.now()-state.startTime)/1000);
+    let result;
+    if(state.mode==='pvp'){
+      result={type:'pvp',rule:state.rule,winner,date:Date.now(),moves:state.moveCount,duration};
+    }else{
+      const playerWon=winner===state.playerColor;
+      result={type:'ai',rule:state.rule,diff:state.diff,playerWon,date:Date.now(),moves:state.moveCount,duration};
+    }
+    results.unshift(result);
+    if(results.length>50)results=results.slice(0,50);
+    saveResults();
+    
+    let msg;
+    if(state.mode==='pvp'){
+      msg='Победили '+(winner==='w'?'белые':'чёрные')+'!<br><small>'+reason+'</small>';
+    }else{
+      msg=(result.playerWon?'Вы победили! 🎉':'Вы проиграли<br><small>Попробуйте ещё раз</small>')+'<br><small>'+reason+'</small>';
+    }
+    setTimeout(()=>{
+      modal('<h3>Партия окончена</h3><p>'+msg+'</p><div class="actions"><button class="btn primary" onclick="closeModal();startGame()">Новая партия</button><button class="btn" onclick="closeModal();show(\'menu\')">В меню</button></div>');
+    },300);
+  }
+}
+
+function undoMove(){
+  if(state.history.length===0||state.aiThinking)return;
+  if(state.mode==='ai'){
+    // Undo both AI and player move
+    if(state.history.length>=2&&state.history[state.history.length-1].turn===state.playerColor){
+      state.history.pop();
+      const prev=state.history.pop();
+      state.board=prev.board;
+      state.turn=prev.turn;
+    }else{
+      const prev=state.history.pop();
+      state.board=prev.board;
+      state.turn=prev.turn;
+    }
+  }else{
+    const prev=state.history.pop();
+    state.board=prev.board;
+    state.turn=prev.turn;
+  }
+  state.selected=null;
+  state.legalMoves=[];
+  render();
+}
+
+function resignGame(){
+  if(state.ended)return;
+  modal('<h3>Сдаться?</h3><p>Вы уверены, что хотите закончить партию?</p><div class="actions"><button class="btn danger" onclick="endGame(true)">Да, сдаться</button><button class="btn" onclick="closeModal()">Отмена</button></div>');
+}
+
+function endGame(resigned){
+  if(state.ended)return;
+  state.ended=true;
+  const duration=Math.floor((Date.now()-state.startTime)/1000);
+  let result;
+  if(state.mode==='pvp'){
+    result={type:'pvp',rule:state.rule,winner:'draw',date:Date.now(),moves:state.moveCount,duration,resigned};
+  }else{
+    result={type:'ai',rule:state.rule,diff:state.diff,playerWon:!resigned,date:Date.now(),moves:state.moveCount,duration,resigned};
+  }
+  results.unshift(result);
+  saveResults();
+  show('menu');
+}
+
+function confirmExit(){
+  if(state&&!state.ended){
+    modal('<h3>Выйти в меню?</h3><p>Текущая партия будет завершена.</p><div class="actions"><button class="btn danger" onclick="endGame(true);closeModal()">Выйти</button><button class="btn" onclick="closeModal()">Остаться</button></div>');
+  }else{
+    show('menu');
+  }
+}
+
+// ============ RESULTS ============
+function showResults(){
+  show('results');
+  const list=document.getElementById('resultsList');
+  if(results.length===0){
+    list.innerHTML='<div class="empty">Пока нет сыгранных партий</div>';
+    return;
+  }
+  list.innerHTML=results.map((r,i)=>{
+    const d=new Date(r.date);
+    const dateStr=d.toLocaleDateString('ru-RU')+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    const dur=r.duration?Math.floor(r.duration/60)+'м '+r.duration%60+'с':'—';
+    const rule=r.rule==='giveaway'?'Поддавки':'Обычные';
+    let title,badge,badgeClass;
+    if(r.type==='pvp'){
+      title='Два игрока · '+rule;
+      if(r.winner==='draw'){badge='Ничья';badgeClass='draw';}
+      else{badge='Победили '+(r.winner==='w'?'белые':'чёрные');badgeClass='win';}
+    }else{
+      const diff=['','Лёгкий','Средний','Сложный'][r.diff];
+      title='vs Компьютер · '+diff+' · '+rule;
+      if(r.resigned){badge='Сдался';badgeClass='loss';}
+      else{badge=r.playerWon?'Победа':'Поражение';badgeClass=r.playerWon?'win':'loss';}
+    }
+    return '<div class="result-item"><div class="info"><div class="title">'+title+'</div><div class="meta">'+dateStr+' · '+r.moves+' ходов · '+dur+'</div></div><div class="badge '+badgeClass+'">'+badge+'</div></div>';
+  }).join('');
+}
+
+function exportData(){
+  const data=JSON.stringify({results,settings,exported:new Date().toISOString(),version:'1.0'},null,2);
+  modal('<h3>Экспорт данных</h3><p>Скопируйте текст ниже и сохраните:</p><textarea id="expTxt" readonly></textarea><div class="actions"><button class="btn primary" onclick="copyExport()">Копировать</button><button class="btn" onclick="downloadExport()">Скачать</button><button class="btn" onclick="closeModal()">Закрыть</button></div>');
+  document.getElementById('expTxt').value=data;
+}
+function copyExport(){
+  const t=document.getElementById('expTxt');
+  t.select();
+  try{document.execCommand('copy');modal('<h3>Скопировано</h3><div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');}catch(e){}
+}
+function downloadExport(){
+  const data=document.getElementById('expTxt').value;
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='checkers-'+Date.now()+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function showImport(){
+  modal('<h3>Импорт данных</h3><p>Вставьте ранее сохранённые данные:</p><textarea id="impTxt" placeholder="JSON..."></textarea><div class="actions"><button class="btn primary" onclick="doImport()">Импортировать</button><button class="btn" onclick="closeModal()">Отмена</button></div>');
+}
+function doImport(){
+  try{
+    const data=JSON.parse(document.getElementById('impTxt').value);
+    if(data.results)results=data.results;
+    if(data.settings){Object.assign(settings,data.settings);saveSettings();
+      if(settings.theme){document.body.className='theme-'+settings.theme;}}
+    saveResults();
+    closeModal();
+    showResults();
+  }catch(e){
+    modal('<h3>Ошибка</h3><p>Неверный формат данных</p><div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');
+  }
+}
+
+function showAbout(){
+  modal('<h3>Шашки</h3><p>Версия 1.0<br>Разработчик: SKLN<br>© 2026<br><br>Русские шашки с вариантом «Поддавки». Поддерживается игра с компьютером (3 уровня сложности) и с другим игроком на одном устройстве.</p><div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');
+}
+
+function clearData(){
+  modal('<h3>Очистить данные?</h3><p>Все результаты будут удалены безвозвратно.</p><div class="actions"><button class="btn danger" onclick="results=[];saveResults();closeModal();show(\'menu\')">Удалить</button><button class="btn" onclick="closeModal()">Отмена</button></div>');
+}
+
+// ============ INIT ============
+window.addEventListener('resize',()=>{if(state&&!state.ended)render()});
+
+// Splash → menu
+setTimeout(()=>{show('menu')},10000);
+// Allow skip
+document.getElementById('splash').onclick=()=>show('menu');
+
+loadSettings();
+
+// Service worker for PWA
+if('serviceWorker' in navigator){
+  const swCode="self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>self.clients.claim());self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))});";
+  const blob=new Blob([swCode],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
