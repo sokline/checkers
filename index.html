@@ -270,10 +270,8 @@ textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);bo
 // ============================================================
 const APP_BUILD = {
   version: '1.0',
-  commit:  'a7f3c2e',
-  date:    '2026-11-07',
-  time:    '14:30',
-  message: 'Исправлена отмена хода и добавлена версия на заставку'
+  commit:  'a7f3c2e',  // Хеш коммита (можно обновлять вручную или через git hook)
+  message: 'Исправлена отмена хода и добавлена автодата'
 };
 // ============================================================
 
@@ -848,10 +846,8 @@ function checkEnd(){
 function undoMove(){
   if(state.history.length===0||state.aiThinking)return;
   
-  // ИСПРАВЛЕНО: сбрасываем ended если игра была завершена
   if(state.ended){
     state.ended=false;
-    // Удаляем последний результат из истории
     if(results.length>0){
       results.shift();
       saveResults();
@@ -859,20 +855,17 @@ function undoMove(){
   }
   
   if(state.mode==='ai'){
-    // В режиме с AI откатываем 2 хода (ход игрока + ход AI)
     if(state.history.length>=2){
-      state.history.pop(); // Ход AI
-      const prev=state.history.pop(); // Ход игрока
+      state.history.pop();
+      const prev=state.history.pop();
       state.board=prev.board;
       state.turn=prev.turn;
     }else if(state.history.length===1){
-      // Если только 1 ход в истории (например, первый ход)
       const prev=state.history.pop();
       state.board=prev.board;
       state.turn=prev.turn;
     }
   }else{
-    // В режиме PvP откатываем 1 ход
     const prev=state.history.pop();
     state.board=prev.board;
     state.turn=prev.turn;
@@ -1071,11 +1064,13 @@ function doImportStats(){
 }
 
 function showAbout(){
-  const dateFormatted=formatDate(APP_BUILD.date);
+  const now=new Date();
+  const dateFormatted=formatDateObject(now);
+  const timeFormatted=now.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   modal('<h3>Шашки</h3>'+
     '<p style="margin-bottom:8px"><b>Версия '+APP_BUILD.version+'</b></p>'+
     '<p style="font-family:monospace;font-size:12px;background:var(--panel2);padding:8px;border-radius:6px;margin-bottom:12px">'+
-    'commit '+APP_BUILD.commit+'<br>'+dateFormatted+(APP_BUILD.time?' · '+APP_BUILD.time:'')+'</p>'+
+    'commit '+APP_BUILD.commit+'<br>'+dateFormatted+' · '+timeFormatted+'</p>'+
     '<p style="font-size:13px;font-style:italic;opacity:.7;margin-bottom:12px">'+APP_BUILD.message+'</p>'+
     '<p style="font-size:13px">Разработчик: SKLN<br>© 2026<br><br>Русские шашки с вариантом «Поддавки». Поддерживается игра с компьютером (3 уровня сложности) и с другим игроком на одном устройстве.</p>'+
     '<div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');
@@ -1097,31 +1092,34 @@ function formatDate(isoDate){
   return d+' '+months[m-1]+' '+y;
 }
 
+function formatDateObject(date){
+  const months=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  return date.getDate()+' '+months[date.getMonth()]+' '+date.getFullYear();
+}
+
 function renderSplashVersion(){
   const el=document.getElementById('splashVer');
-  if(!el){
-    console.warn('Element #splashVer not found');
-    return;
-  }
-  const dateFormatted=formatDate(APP_BUILD.date);
+  if(!el)return;
+  const now=new Date();
+  const dateFormatted=formatDateObject(now);
+  const timeFormatted=now.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   el.innerHTML=
     '2026 · v'+APP_BUILD.version+'<br>'+
     '<span class="commit">commit '+APP_BUILD.commit+'</span>'+
-    (dateFormatted?'<div class="build-date">'+dateFormatted+(APP_BUILD.time?' · '+APP_BUILD.time:'')+'</div>':'');
-  console.log('Splash version rendered:',el.innerHTML);
+    '<div class="build-date">'+dateFormatted+' · '+timeFormatted+'</div>';
 }
 
 function renderAboutVersion(){
   const el=document.getElementById('aboutVer');
   if(!el)return;
-  const dateFormatted=formatDate(APP_BUILD.date);
+  const now=new Date();
+  const dateFormatted=formatDateObject(now);
   el.textContent='SKLN · '+dateFormatted+' · '+APP_BUILD.commit;
 }
 
 // ============ INIT ============
 window.addEventListener('resize',()=>{if(state&&!state.ended)render()});
 
-// Ждем загрузки DOM
 if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',init);
 }else{
@@ -1129,7 +1127,6 @@ if(document.readyState==='loading'){
 }
 
 function init(){
-  console.log('Initializing app...');
   renderSplashVersion();
   renderAboutVersion();
   loadSettings();
@@ -1140,7 +1137,6 @@ function init(){
   
   console.log('%cШашки v'+APP_BUILD.version+' ('+APP_BUILD.commit+')',
     'color:#e0a82e;font-size:14px;font-weight:bold');
-  console.log('Build date: '+APP_BUILD.date+(APP_BUILD.time?' '+APP_BUILD.time:''));
   console.log('Message: '+APP_BUILD.message);
 }
 
