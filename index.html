@@ -6,7 +6,11 @@
 <meta name="theme-color" content="#1a1a1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Шашки</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzFhMWExYSIvPjxyZWN0IHg9IjY0IiB5PSI2NCIgd2lkdGg9IjM4NCIgaGVpZ2h0PSIzODQiIGZpbGw9IiM4YjVhMmIiIHJ4PSI4Ii8+PGNpcmNsZSBjeD0iMTYwIiBjeT0iMTYwIiByPSI0MCIgZmlsbD0iI2ZmZiIvPjxjaXJjbGUgY3g9IjM1MiIgY3k9IjE2MCIgcj0iNDAiIGZpbGw9IiMwMDAiLz48Y2lyY2xlIGN4PSIxNjAiIGN5PSIzNTIiIHI9IjQwIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMzUyIiBjeT0iMzUyIiByPSI0MCIgZmlsbD0iIzAwMCIvPjwvc3ZnPg==">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzFhMWExYSIvPjxyZWN0IHg9IjY0IiB5PSI2NCIgd2lkdGg9IjM4NCIgaGVpZ2h0PSIzODQiIGZpbGw9IiM4YjVhMmIiIHJ4PSI4Ii8+PGNpcmNsZSBjeD0iMTYwIiBjeT0iMTYwIiByPSI0MCIgZmlsbD0iI2ZmZiIvPjxjaXJjbGUgY3g9IjM1MiIgY3k9IjE2MCIgcj0iNDAiIGZpbGw9IiMwMDAiLz48Y2lyY2xlIGN4PSIxNjAiIGN5PSIzNTIiIHI9IjQwIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMzUyIiBjeT0iMzUyIiByPSI0MCIgZmlsbD0iIzAwMCIvPjwvc3ZnPg==">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;touch-action:manipulation}
@@ -103,6 +107,9 @@ textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);bo
 .sound-control{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px}
 .sound-control input[type=range]{flex:1;accent-color:var(--accent)}
 .sound-control .vol-val{font-size:13px;min-width:35px;text-align:right}
+.install-banner{background:var(--accent);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:14px}
+.install-banner .btn{background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.3);padding:6px 12px;font-size:13px}
+.install-banner.hidden{display:none}
 @media (max-width:480px){
   .menu-item{padding:14px}
   .menu-item .ic{width:34px;height:34px;font-size:16px}
@@ -122,6 +129,11 @@ textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);bo
 </div>
 
 <div class="screen" id="menu">
+  <div class="install-banner hidden" id="installBanner">
+    <span style="flex:1">📲 Установить приложение</span>
+    <button class="btn" onclick="installApp()">Установить</button>
+    <button class="btn" onclick="dismissInstall()">✕</button>
+  </div>
   <header><h2>Шашки</h2></header>
   <div class="menu">
     <div class="menu-item" onclick="Sound.init();show('setup')">
@@ -266,14 +278,40 @@ textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);bo
 
 <script>
 // ============================================================
-// ИНФОРМАЦИЯ О СБОРКЕ
-// ============================================================
 const APP_BUILD = {
-  version: '1.0',
-  commit:  'a7f3c2e',  // Хеш коммита (можно обновлять вручную или через git hook)
-  message: 'Исправлена отмена хода и добавлена автодата'
+  version: '1.1',
+  commit:  'b8f4d3f',
+  message: 'Офлайн-режим, исправлена логика взятий'
 };
 // ============================================================
+
+// ============ PWA INSTALL ============
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.remove('hidden');
+});
+
+function installApp(){
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(result => {
+    console.log('Install result:', result.outcome);
+    deferredPrompt = null;
+    document.getElementById('installBanner').classList.add('hidden');
+  });
+}
+
+function dismissInstall(){
+  document.getElementById('installBanner').classList.add('hidden');
+}
+
+window.addEventListener('appinstalled', () => {
+  console.log('PWA installed');
+  document.getElementById('installBanner').classList.add('hidden');
+  deferredPrompt = null;
+});
 
 // ============ SOUND ============
 const Sound={
@@ -387,33 +425,6 @@ function initBoard(){
   return b;
 }
 
-function getMoves(board,r,c){
-  const p=board[idx(r,c)];
-  if(!p)return[];
-  const captures=getCaptures(board,r,c,p,[]);
-  if(captures.length>0)return captures;
-  const dirs=p.king?[[-1,-1],[-1,1],[1,-1],[1,1]]:(p.color==='w'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]]);
-  const moves=[];
-  if(p.king){
-    for(const[dr,dc]of dirs){
-      let nr=r+dr,nc=c+dc;
-      while(nr>=0&&nr<8&&nc>=0&&nc<8){
-        const i=idx(nr,nc);
-        if(board[i])break;
-        moves.push({path:[idx(r,c),i],captures:[]});
-        nr+=dr;nc+=dc;
-      }
-    }
-  }else{
-    for(const[dr,dc]of dirs){
-      const nr=r+dr,nc=c+dc;
-      if(nr<0||nr>=8||nc<0||nc>=8)continue;
-      if(!board[idx(nr,nc)])moves.push({path:[idx(r,c),idx(nr,nc)],captures:[]});
-    }
-  }
-  return moves;
-}
-
 function getCaptures(board,r,c,p,visited){
   const moves=[];
   const isKing=p.king;
@@ -479,20 +490,47 @@ function getCaptures(board,r,c,p,visited){
   return moves;
 }
 
+function getMoves(board,r,c){
+  const p=board[idx(r,c)];
+  if(!p)return[];
+  const captures=getCaptures(board,r,c,p,[]);
+  if(captures.length>0)return captures;
+  const dirs=p.king?[[-1,-1],[-1,1],[1,-1],[1,1]]:(p.color==='w'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]]);
+  const moves=[];
+  if(p.king){
+    for(const[dr,dc]of dirs){
+      let nr=r+dr,nc=c+dc;
+      while(nr>=0&&nr<8&&nc>=0&&nc<8){
+        const i=idx(nr,nc);
+        if(board[i])break;
+        moves.push({path:[idx(r,c),i],captures:[]});
+        nr+=dr;nc+=dc;
+      }
+    }
+  }else{
+    for(const[dr,dc]of dirs){
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>=8||nc<0||nc>=8)continue;
+      if(!board[idx(nr,nc)])moves.push({path:[idx(r,c),idx(nr,nc)],captures:[]});
+    }
+  }
+  return moves;
+}
+
 function getAllMoves(board,color){
   const all=[];
-  let anyCap=false;
+  let maxCaptures=0;
   for(let i=0;i<64;i++){
     const p=board[i];
     if(!p||p.color!==color)continue;
     const[r,c]=rc(i);
     const ms=getMoves(board,r,c);
     for(const m of ms){
-      if(m.captures.length>0)anyCap=true;
       all.push({from:i,move:m});
+      if(m.captures.length>maxCaptures)maxCaptures=m.captures.length;
     }
   }
-  if(anyCap)return all.filter(a=>a.move.captures.length>0);
+  if(maxCaptures>0)return all.filter(a=>a.move.captures.length===maxCaptures);
   return all;
 }
 
@@ -597,36 +635,23 @@ function startGame(){
   const diff=parseInt(document.querySelector('#diffGroup .opt.active').dataset.v);
   const rule=document.querySelector('#ruleGroup .opt.active').dataset.v;
   const color=document.querySelector('#colorPicker .color-opt.active').dataset.c;
-  
   const colorMap={white:'w',black:'b',red:'r',blue:'l'};
   const playerColor=colorMap[color];
   const playerIsWhite=(playerColor==='w'||playerColor==='r');
-  
   state={
-    board:initBoard(),
-    turn:'w',
-    mode,rule,diff,
+    board:initBoard(),turn:'w',mode,rule,diff,
     playerVisual:color,
     playerColor:playerIsWhite?'w':'b',
     aiColor:playerIsWhite?'b':'w',
-    selected:null,
-    legalMoves:[],
-    history:[],
-    moveCount:0,
-    startTime:Date.now(),
-    aiThinking:false,
-    ended:false
+    selected:null,legalMoves:[],history:[],
+    moveCount:0,startTime:Date.now(),
+    aiThinking:false,ended:false
   };
-  
   document.getElementById('gameTitle').textContent=
     (rule==='giveaway'?'Поддавки · ':'')+(mode==='ai'?'vs Компьютер':'Два игрока');
-  
   show('game');
   render();
-  
-  if(mode==='ai'&&state.turn===state.aiColor){
-    setTimeout(doAiMove,400);
-  }
+  if(mode==='ai'&&state.turn===state.aiColor)setTimeout(doAiMove,400);
 }
 
 function render(){
@@ -636,9 +661,7 @@ function render(){
   board.style.width=size+'px';
   board.style.height=size+'px';
   const cell=size/8;
-  
   const flipped=state.mode==='ai'&&state.playerColor==='b';
-  
   board.innerHTML='';
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){
     const d=document.createElement('div');
@@ -652,7 +675,6 @@ function render(){
     d.onclick=()=>onCellClick(r,c);
     board.appendChild(d);
   }
-  
   for(let i=0;i<64;i++){
     const p=state.board[i];if(!p)continue;
     const[r,c]=rc(i);
@@ -677,7 +699,6 @@ function render(){
     d.onclick=(e)=>{e.stopPropagation();onCellClick(r,c)};
     board.appendChild(d);
   }
-  
   for(const m of state.legalMoves){
     const to=m.move.path[m.move.path.length-1];
     const[r,c]=rc(to);
@@ -694,7 +715,6 @@ function render(){
     d.onclick=(e)=>{e.stopPropagation();doMove(m)};
     board.appendChild(d);
   }
-  
   const turnDot=document.getElementById('turnDot');
   const turnText=document.getElementById('turnText');
   let dotColor;
@@ -711,13 +731,9 @@ function render(){
     turnText.textContent=(state.aiThinking?'Компьютер думает...':(isPlayerTurn?'Ваш ход':'Ход компьютера'));
   }
   turnDot.style.background=dotColor;
-  
   const wc=countPieces(state.board,'w'),bc=countPieces(state.board,'b');
-  document.getElementById('scoreW').textContent=(state.mode==='pvp'?'Б':'Вы')+': '+
-    (state.mode==='pvp'?wc:(state.playerColor==='w'?wc:bc));
-  document.getElementById('scoreB').textContent=(state.mode==='pvp'?'Ч':'AI')+': '+
-    (state.mode==='pvp'?bc:(state.playerColor==='w'?bc:wc));
-  
+  document.getElementById('scoreW').textContent=(state.mode==='pvp'?'Б':'Вы')+': '+(state.mode==='pvp'?wc:(state.playerColor==='w'?wc:bc));
+  document.getElementById('scoreB').textContent=(state.mode==='pvp'?'Ч':'AI')+': '+(state.mode==='pvp'?bc:(state.playerColor==='w'?bc:wc));
   document.getElementById('undoBtn').disabled=state.history.length===0||state.aiThinking;
 }
 
@@ -726,7 +742,6 @@ function onCellClick(r,c){
   if(state.mode==='ai'&&state.turn!==state.playerColor)return;
   const i=idx(r,c);
   const p=state.board[i];
-  
   if(p&&((state.mode==='pvp'&&p.color===state.turn)||(state.mode==='ai'&&p.color===state.playerColor))){
     const moves=getAllMoves(state.board,state.turn).filter(m=>m.from===i);
     if(moves.length===0){
@@ -741,16 +756,10 @@ function onCellClick(r,c){
     render();
     return;
   }
-  
   if(state.selected!==null){
     const move=state.legalMoves.find(m=>m.move.path[m.move.path.length-1]===i);
-    if(move){
-      doMove(move);
-    }else{
-      state.selected=null;
-      state.legalMoves=[];
-      render();
-    }
+    if(move){doMove(move);}
+    else{state.selected=null;state.legalMoves=[];render();}
   }
 }
 
@@ -765,9 +774,7 @@ function doMove(moveEntry){
   Sound.play(move.captures.length>0?'capture':'move');
   render();
   checkEnd();
-  if(!state.ended&&state.mode==='ai'&&state.turn===state.aiColor){
-    setTimeout(doAiMove,300);
-  }
+  if(!state.ended&&state.mode==='ai'&&state.turn===state.aiColor)setTimeout(doAiMove,300);
 }
 
 function doAiMove(){
@@ -792,23 +799,15 @@ function checkEnd(){
   const moves=getAllMoves(state.board,state.turn);
   const wc=countPieces(state.board,'w'),bc=countPieces(state.board,'b');
   let winner=null,reason='';
-  
   if(state.rule==='normal'){
     if(wc===0){winner='b';reason='Белые потеряли все шашки';}
     else if(bc===0){winner='w';reason='Чёрные потеряли все шашки';}
-    else if(moves.length===0){
-      winner=state.turn==='w'?'b':'w';
-      reason=(state.turn==='w'?'Белые':'Чёрные')+' не могут ходить';
-    }
+    else if(moves.length===0){winner=state.turn==='w'?'b':'w';reason=(state.turn==='w'?'Белые':'Чёрные')+' не могут ходить';}
   }else{
     if(wc===0){winner='w';reason='Белые отдали все шашки';}
     else if(bc===0){winner='b';reason='Чёрные отдали все шашки';}
-    else if(moves.length===0){
-      winner=state.turn;
-      reason=(state.turn==='w'?'Белые':'Чёрные')+' не могут ходить';
-    }
+    else if(moves.length===0){winner=state.turn;reason=(state.turn==='w'?'Белые':'Чёрные')+' не могут ходить';}
   }
-  
   if(winner){
     state.ended=true;
     const duration=Math.floor((Date.now()-state.startTime)/1000);
@@ -823,7 +822,6 @@ function checkEnd(){
     results.unshift(result);
     if(results.length>50)results=results.slice(0,50);
     saveResults();
-    
     let msg;
     if(state.mode==='pvp'){
       const winnerName=winner==='w'?'белые':'чёрные';
@@ -845,15 +843,10 @@ function checkEnd(){
 
 function undoMove(){
   if(state.history.length===0||state.aiThinking)return;
-  
   if(state.ended){
     state.ended=false;
-    if(results.length>0){
-      results.shift();
-      saveResults();
-    }
+    if(results.length>0){results.shift();saveResults();}
   }
-  
   if(state.mode==='ai'){
     if(state.history.length>=2){
       state.history.pop();
@@ -870,7 +863,6 @@ function undoMove(){
     state.board=prev.board;
     state.turn=prev.turn;
   }
-  
   state.selected=null;
   state.legalMoves=[];
   state.moveCount=Math.max(0,state.moveCount-(state.mode==='ai'?2:1));
@@ -909,10 +901,7 @@ function confirmExit(){
 function showResults(){
   show('results');
   const list=document.getElementById('resultsList');
-  if(results.length===0){
-    list.innerHTML='<div class="empty">Пока нет сыгранных партий</div>';
-    return;
-  }
+  if(results.length===0){list.innerHTML='<div class="empty">Пока нет сыгранных партий</div>';return;}
   list.innerHTML=results.map((r)=>{
     const d=new Date(r.date);
     const dateStr=d.toLocaleDateString('ru-RU')+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
@@ -939,8 +928,7 @@ function exportData(){
   document.getElementById('expTxt').value=data;
 }
 function copyExport(){
-  const t=document.getElementById('expTxt');
-  t.select();
+  const t=document.getElementById('expTxt');t.select();
   try{document.execCommand('copy');modal('<h3>Скопировано</h3><div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');}catch(e){}
 }
 function downloadExport(){
@@ -949,8 +937,7 @@ function downloadExport(){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download='checkers-'+Date.now()+'.json';
-  a.click();
-  URL.revokeObjectURL(url);
+  a.click();URL.revokeObjectURL(url);
 }
 function showImport(){
   modal('<h3>Импорт данных</h3><p>Вставьте ранее сохранённые данные:</p><textarea id="impTxt" placeholder="JSON..."></textarea><div class="actions"><button class="btn primary" onclick="doImport()">Импортировать</button><button class="btn" onclick="closeModal()">Отмена</button></div>');
@@ -959,11 +946,8 @@ function doImport(){
   try{
     const data=JSON.parse(document.getElementById('impTxt').value);
     if(data.results)results=data.results;
-    if(data.settings){Object.assign(settings,data.settings);saveSettings();
-      if(settings.theme){document.body.className='theme-'+settings.theme;}}
-    saveResults();
-    closeModal();
-    showResults();
+    if(data.settings){Object.assign(settings,data.settings);saveSettings();if(settings.theme){document.body.className='theme-'+settings.theme;}}
+    saveResults();closeModal();showResults();
   }catch(e){
     modal('<h3>Ошибка</h3><p>Неверный формат данных</p><div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');
   }
@@ -971,18 +955,13 @@ function doImport(){
 
 // ============ STATS ============
 function getStats(){
-  const stats={
-    total:results.length,wins:0,losses:0,draws:0,
-    ai:{wins:0,losses:0,total:0},
-    pvp:{wins:0,losses:0,draws:0,total:0},
-    normal:{wins:0,losses:0,draws:0,total:0},
-    giveaway:{wins:0,losses:0,draws:0,total:0},
-    diff:{1:{wins:0,losses:0,total:0},2:{wins:0,losses:0,total:0},3:{wins:0,losses:0,total:0}}
-  };
+  const stats={total:results.length,wins:0,losses:0,draws:0,
+    ai:{wins:0,losses:0,total:0},pvp:{wins:0,losses:0,draws:0,total:0},
+    normal:{wins:0,losses:0,draws:0,total:0},giveaway:{wins:0,losses:0,draws:0,total:0},
+    diff:{1:{wins:0,losses:0,total:0},2:{wins:0,losses:0,total:0},3:{wins:0,losses:0,total:0}}};
   for(const r of results){
     if(r.type==='ai'){
-      stats.ai.total++;
-      stats.diff[r.diff].total++;
+      stats.ai.total++;stats.diff[r.diff].total++;
       if(r.playerWon){stats.wins++;stats.ai.wins++;stats.diff[r.diff].wins++;}
       else{stats.losses++;stats.ai.losses++;stats.diff[r.diff].losses++;}
       if(r.rule==='normal'){stats.normal.total++;if(r.playerWon)stats.normal.wins++;else stats.normal.losses++;}
@@ -1007,10 +986,7 @@ function showStats(){
   show('stats');
   const stats=getStats();
   const content=document.getElementById('statsContent');
-  if(stats.total===0){
-    content.innerHTML='<div class="empty">Нет данных для отображения</div>';
-    return;
-  }
+  if(stats.total===0){content.innerHTML='<div class="empty">Нет данных для отображения</div>';return;}
   const winRate=stats.ai.total>0?Math.round(stats.ai.wins/stats.ai.total*100):0;
   let html='<div class="stats-table"><table>';
   html+='<tr><th>Общая статистика</th><th>Значение</th></tr>';
@@ -1053,11 +1029,7 @@ function showImportStats(){
 function doImportStats(){
   try{
     const data=JSON.parse(document.getElementById('impTxt').value);
-    if(data.stats){
-      localStorage.setItem('importedStats',JSON.stringify(data.stats));
-      closeModal();
-      showStats();
-    }
+    if(data.stats){localStorage.setItem('importedStats',JSON.stringify(data.stats));closeModal();showStats();}
   }catch(e){
     modal('<h3>Ошибка</h3><p>Неверный формат данных</p><div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');
   }
@@ -1072,7 +1044,7 @@ function showAbout(){
     '<p style="font-family:monospace;font-size:12px;background:var(--panel2);padding:8px;border-radius:6px;margin-bottom:12px">'+
     'commit '+APP_BUILD.commit+'<br>'+dateFormatted+' · '+timeFormatted+'</p>'+
     '<p style="font-size:13px;font-style:italic;opacity:.7;margin-bottom:12px">'+APP_BUILD.message+'</p>'+
-    '<p style="font-size:13px">Разработчик: SKLN<br>© 2026<br><br>Русские шашки с вариантом «Поддавки». Поддерживается игра с компьютером (3 уровня сложности) и с другим игроком на одном устройстве.</p>'+
+    '<p style="font-size:13px">Разработчик: SKLN<br>© 2026<br><br>Русские шашки с вариантом «Поддавки». Работает офлайн после первой загрузки.</p>'+
     '<div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');
 }
 
@@ -1081,17 +1053,6 @@ function clearData(){
 }
 
 // ============ BUILD INFO HELPERS ============
-function formatDate(isoDate){
-  if(!isoDate)return '';
-  const parts=isoDate.split('-');
-  if(parts.length!==3)return isoDate;
-  const months=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-  const d=parseInt(parts[2],10);
-  const m=parseInt(parts[1],10);
-  const y=parts[0];
-  return d+' '+months[m-1]+' '+y;
-}
-
 function formatDateObject(date){
   const months=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
   return date.getDate()+' '+months[date.getMonth()]+' '+date.getFullYear();
@@ -1135,68 +1096,20 @@ function init(){
   setTimeout(()=>{show('menu')},10000);
   document.getElementById('splash').onclick=()=>show('menu');
   
+  // Регистрация Service Worker
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js')
+      .then(reg=>{
+        console.log('[SW] Registered:', reg.scope);
+        // Проверка обновлений
+        reg.update();
+      })
+      .catch(err=>console.warn('[SW] Registration failed:', err));
+  }
+  
   console.log('%cШашки v'+APP_BUILD.version+' ('+APP_BUILD.commit+')',
     'color:#e0a82e;font-size:14px;font-weight:bold');
   console.log('Message: '+APP_BUILD.message);
-}
-
-// ============ PWA MANIFEST ============
-const iconSvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#1a1a1a"/><rect x="64" y="64" width="384" height="384" fill="#8b5a2b" rx="8"/><rect x="64" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="160" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="256" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="352" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="112" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="208" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="304" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="400" y="112" width="48" height="48" fill="#e8d4a2"/><circle cx="136" cy="136" r="18" fill="#fff"/><circle cx="232" cy="136" r="18" fill="#fff"/><circle cx="328" cy="136" r="18" fill="#fff"/><circle cx="424" cy="136" r="18" fill="#fff"/><circle cx="88" cy="88" r="18" fill="#000"/><circle cx="184" cy="88" r="18" fill="#000"/><circle cx="280" cy="88" r="18" fill="#000"/><circle cx="376" cy="88" r="18" fill="#000"/></svg>`;
-const iconUrl='data:image/svg+xml;base64,'+btoa(iconSvg);
-
-const manifest={
-  name:"Шашки",
-  short_name:"Шашки",
-  description:"Русские шашки с вариантом Поддавки",
-  start_url:".",
-  display:"standalone",
-  orientation:"portrait",
-  background_color:"#1a1a1a",
-  theme_color:"#1a1a1a",
-  icons:[
-    {src:iconUrl,sizes:"192x192",type:"image/svg+xml",purpose:"any maskable"},
-    {src:iconUrl,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}
-  ]
-};
-
-const manifestBlob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
-const manifestUrl=URL.createObjectURL(manifestBlob);
-const manifestLink=document.createElement('link');
-manifestLink.rel='manifest';
-manifestLink.href=manifestUrl;
-document.head.appendChild(manifestLink);
-
-const appleIcon=document.createElement('link');
-appleIcon.rel='apple-touch-icon';
-appleIcon.href=iconUrl;
-document.head.appendChild(appleIcon);
-
-const favicon=document.createElement('link');
-favicon.rel='icon';
-favicon.type='image/svg+xml';
-favicon.href=iconUrl;
-document.head.appendChild(favicon);
-
-if('serviceWorker' in navigator){
-  const swCode=`
-    const CACHE='checkers-v1';
-    self.addEventListener('install',e=>{self.skipWaiting()});
-    self.addEventListener('activate',e=>{self.clients.claim()});
-    self.addEventListener('fetch',e=>{
-      e.respondWith(
-        caches.match(e.request).then(r=>r||fetch(e.request).then(resp=>{
-          if(resp.status===200){
-            const clone=resp.clone();
-            caches.open(CACHE).then(c=>c.put(e.request,clone));
-          }
-          return resp;
-        }).catch(()=>caches.match(e.request)))
-      );
-    });
-  `;
-  const swBlob=new Blob([swCode],{type:'application/javascript'});
-  const swUrl=URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swUrl).catch(()=>{});
 }
 </script>
 </body>
