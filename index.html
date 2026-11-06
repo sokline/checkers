@@ -20,7 +20,9 @@ body.theme-sepia{--bg:#f0e6d2;--fg:#3d2f1f;--board-light:#e6d2a8;--board-dark:#6
 .splash{align-items:center;justify-content:center;background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);color:#fff;text-align:center}
 .splash h1{font-size:clamp(48px,12vw,96px);font-weight:200;letter-spacing:8px;margin-bottom:20px;animation:fadeIn 1.5s ease}
 .splash .sub{font-size:14px;opacity:.6;letter-spacing:2px;animation:fadeIn 2s ease}
-.splash .ver{position:absolute;bottom:80px;font-size:12px;opacity:.4}
+.splash .ver{position:absolute;bottom:80px;font-size:12px;opacity:.5;line-height:1.6}
+.splash .ver .commit{font-family:'Courier New',monospace;font-size:11px;opacity:.7;background:rgba(255,255,255,.08);padding:3px 10px;border-radius:10px;display:inline-block;margin-top:6px;letter-spacing:1px}
+.splash .ver .build-date{font-size:11px;opacity:.5;margin-top:4px}
 .splash .logo{width:80px;height:80px;margin-bottom:20px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,#888);box-shadow:0 0 40px rgba(255,255,255,.3);animation:pulse 2s infinite}
 .progress-wrap{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);width:200px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
 .progress-bar{height:100%;background:linear-gradient(90deg,#e0a82e,#f4d03f);border-radius:2px;animation:load 10s linear forwards}
@@ -115,7 +117,7 @@ textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);bo
   <div class="logo"></div>
   <h1>ШАШКИ</h1>
   <div class="sub">разработчик SKLN</div>
-  <div class="ver">2026 · v1.0</div>
+  <div class="ver" id="splashVer"></div>
   <div class="progress-wrap"><div class="progress-bar"></div></div>
 </div>
 
@@ -140,7 +142,7 @@ textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);bo
     </div>
     <div class="menu-item" onclick="showAbout()">
       <div class="ic">ℹ</div>
-      <div><div class="t">О программе</div><div class="d">SKLN · 2026 · v1.0</div></div>
+      <div><div class="t">О программе</div><div class="d" id="aboutVer">SKLN · 2026 · v1.0</div></div>
     </div>
   </div>
 </div>
@@ -263,6 +265,19 @@ textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);bo
 </div>
 
 <script>
+// ============================================================
+// ИНФОРМАЦИЯ О СБОРКЕ
+// Обновляйте эти значения при каждом коммите
+// ============================================================
+const APP_BUILD = {
+  version: '1.0',
+  commit:  'a7f3c2e',       // короткий хеш коммита
+  date:    '2026-11-07',    // дата коммита (ГГГГ-ММ-ДД)
+  time:    '14:30',         // время коммита (ЧЧ:ММ)
+  message: 'Добавлена версия и дата коммита на заставку'
+};
+// ============================================================
+
 // ============ SOUND ============
 const Sound={
   ctx:null,volume:0.5,muted:false,
@@ -502,7 +517,6 @@ function countPieces(board,color){return board.filter(p=>p&&p.color===color).len
 // ============ AI ============
 const DEPTH={1:2,2:4,3:6};
 
-// Оценка позиции. Положительная = хорошо для белых.
 function evaluate(board,rule){
   let wScore=0,bScore=0;
   for(let i=0;i<64;i++){
@@ -511,31 +525,16 @@ function evaluate(board,rule){
     if(p.color==='w')wScore+=val;
     else bScore+=val;
   }
-  
-  if(rule==='giveaway'){
-    // ПОДАВКИ: цель — отдать все свои шашки.
-    // Для белых хорошо, когда у них МАЛО шашек, а у чёрных МНОГО.
-    return bScore - wScore;
-  }else{
-    // ОБЫЧНЫЕ: цель — сбить все шашки противника.
-    // Для белых хорошо, когда у них МНОГО шашек, а у чёрных МАЛО.
-    return wScore - bScore;
-  }
+  if(rule==='giveaway')return bScore-wScore;
+  return wScore-bScore;
 }
 
 function minimax(board,depth,alpha,beta,color,rule,maximizing){
   const moves=getAllMoves(board,color);
   if(depth===0||moves.length===0){
     if(moves.length===0){
-      // Партия окончена из-за отсутствия ходов.
-      if(rule==='giveaway'){
-        // В поддавках тот, кто не может ходить — ВЫИГРЫВАЕТ.
-        // maximizing=true означает, что сейчас ход белых.
-        return maximizing ? 1000 : -1000;
-      }else{
-        // В обычных тот, кто не может ходить — ПРОИГРЫВАЕТ.
-        return maximizing ? -1000 : 1000;
-      }
+      if(rule==='giveaway')return maximizing?1000:-1000;
+      return maximizing?-1000:1000;
     }
     return evaluate(board,rule);
   }
@@ -570,12 +569,9 @@ function aiMove(board,color,level,rule){
   if(level===1&&Math.random()<0.3){
     return moves[Math.floor(Math.random()*moves.length)];
   }
-  
   const aiIsWhite=color==='w';
   const nextColor=color==='w'?'b':'w';
-  
   if(aiIsWhite){
-    // AI за белых — максимизирует оценку (положительная = хорошо для белых)
     let best=-Infinity,bestMove=null;
     for(const m of moves){
       const nb=applyMove(board,m.move);
@@ -586,7 +582,6 @@ function aiMove(board,color,level,rule){
     }
     return bestMove;
   }else{
-    // AI за чёрных — минимизирует оценку (отрицательная = плохо для белых = хорошо для чёрных)
     let best=Infinity,bestMove=null;
     for(const m of moves){
       const nb=applyMove(board,m.move);
@@ -802,26 +797,16 @@ function checkEnd(){
   let winner=null,reason='';
   
   if(state.rule==='normal'){
-    // ОБЫЧНЫЕ ШАШКИ: проигрывает тот, у кого нет шашек или нет ходов
-    if(wc===0){
-      winner='b';
-      reason='Белые потеряли все шашки';
-    }else if(bc===0){
-      winner='w';
-      reason='Чёрные потеряли все шашки';
-    }else if(moves.length===0){
+    if(wc===0){winner='b';reason='Белые потеряли все шашки';}
+    else if(bc===0){winner='w';reason='Чёрные потеряли все шашки';}
+    else if(moves.length===0){
       winner=state.turn==='w'?'b':'w';
       reason=(state.turn==='w'?'Белые':'Чёрные')+' не могут ходить';
     }
   }else{
-    // ПОДАВКИ: выигрывает тот, кто отдал все шашки или не может ходить
-    if(wc===0){
-      winner='w';
-      reason='Белые отдали все шашки';
-    }else if(bc===0){
-      winner='b';
-      reason='Чёрные отдали все шашки';
-    }else if(moves.length===0){
+    if(wc===0){winner='w';reason='Белые отдали все шашки';}
+    else if(bc===0){winner='b';reason='Чёрные отдали все шашки';}
+    else if(moves.length===0){
       winner=state.turn;
       reason=(state.turn==='w'?'Белые':'Чёрные')+' не могут ходить';
     }
@@ -845,24 +830,14 @@ function checkEnd(){
     let msg;
     if(state.mode==='pvp'){
       const winnerName=winner==='w'?'белые':'чёрные';
-      if(state.rule==='giveaway'){
-        msg='Победили '+winnerName+'!<br><small>'+reason+'</small>';
-      }else{
-        msg='Победили '+winnerName+'!<br><small>'+reason+'</small>';
-      }
+      msg='Победили '+winnerName+'!<br><small>'+reason+'</small>';
     }else{
       if(result.playerWon){
-        if(state.rule==='giveaway'){
-          msg='Вы победили! 🎉<br><small>Вы успешно отдали все шашки</small>';
-        }else{
-          msg='Вы победили! 🎉<br><small>'+reason+'</small>';
-        }
+        if(state.rule==='giveaway')msg='Вы победили! 🎉<br><small>Вы успешно отдали все шашки</small>';
+        else msg='Вы победили! 🎉<br><small>'+reason+'</small>';
       }else{
-        if(state.rule==='giveaway'){
-          msg='Вы проиграли<br><small>Компьютер отдал все шашки раньше вас</small>';
-        }else{
-          msg='Вы проиграли<br><small>'+reason+'</small>';
-        }
+        if(state.rule==='giveaway')msg='Вы проиграли<br><small>Компьютер отдал все шашки раньше вас</small>';
+        else msg='Вы проиграли<br><small>'+reason+'</small>';
       }
     }
     setTimeout(()=>{
@@ -951,7 +926,7 @@ function showResults(){
 }
 
 function exportData(){
-  const data=JSON.stringify({results,settings,exported:new Date().toISOString(),version:'1.0'},null,2);
+  const data=JSON.stringify({results,settings,exported:new Date().toISOString(),version:APP_BUILD.version,commit:APP_BUILD.commit},null,2);
   modal('<h3>Экспорт данных</h3><p>Скопируйте текст ниже и сохраните:</p><textarea id="expTxt" readonly></textarea><div class="actions"><button class="btn primary" onclick="copyExport()">Копировать</button><button class="btn" onclick="downloadExport()">Скачать</button><button class="btn" onclick="closeModal()">Закрыть</button></div>');
   document.getElementById('expTxt').value=data;
 }
@@ -996,23 +971,14 @@ function getStats(){
     giveaway:{wins:0,losses:0,draws:0,total:0},
     diff:{1:{wins:0,losses:0,total:0},2:{wins:0,losses:0,total:0},3:{wins:0,losses:0,total:0}}
   };
-  
   for(const r of results){
     if(r.type==='ai'){
       stats.ai.total++;
       stats.diff[r.diff].total++;
-      if(r.playerWon){
-        stats.wins++;stats.ai.wins++;stats.diff[r.diff].wins++;
-      }else{
-        stats.losses++;stats.ai.losses++;stats.diff[r.diff].losses++;
-      }
-      if(r.rule==='normal'){
-        stats.normal.total++;
-        if(r.playerWon)stats.normal.wins++;else stats.normal.losses++;
-      }else{
-        stats.giveaway.total++;
-        if(r.playerWon)stats.giveaway.wins++;else stats.giveaway.losses++;
-      }
+      if(r.playerWon){stats.wins++;stats.ai.wins++;stats.diff[r.diff].wins++;}
+      else{stats.losses++;stats.ai.losses++;stats.diff[r.diff].losses++;}
+      if(r.rule==='normal'){stats.normal.total++;if(r.playerWon)stats.normal.wins++;else stats.normal.losses++;}
+      else{stats.giveaway.total++;if(r.playerWon)stats.giveaway.wins++;else stats.giveaway.losses++;}
     }else{
       stats.pvp.total++;
       if(r.winner==='draw'){
@@ -1026,7 +992,6 @@ function getStats(){
       }
     }
   }
-  
   return stats;
 }
 
@@ -1034,14 +999,11 @@ function showStats(){
   show('stats');
   const stats=getStats();
   const content=document.getElementById('statsContent');
-  
   if(stats.total===0){
     content.innerHTML='<div class="empty">Нет данных для отображения</div>';
     return;
   }
-  
   const winRate=stats.ai.total>0?Math.round(stats.ai.wins/stats.ai.total*100):0;
-  
   let html='<div class="stats-table"><table>';
   html+='<tr><th>Общая статистика</th><th>Значение</th></tr>';
   html+='<tr><td>Всего партий</td><td>'+stats.total+'</td></tr>';
@@ -1050,32 +1012,28 @@ function showStats(){
   html+='<tr><td>Ничьих</td><td>'+stats.draws+'</td></tr>';
   html+='<tr><td>Процент побед (vs AI)</td><td>'+winRate+'%</td></tr>';
   html+='</table></div>';
-  
   html+='<div class="stats-table"><table>';
   html+='<tr><th>По режиму</th><th>Всего</th><th>Побед</th><th>Поражений</th></tr>';
   html+='<tr><td>vs Компьютер</td><td>'+stats.ai.total+'</td><td>'+stats.ai.wins+'</td><td>'+stats.ai.losses+'</td></tr>';
   html+='<tr><td>Два игрока</td><td>'+stats.pvp.total+'</td><td>'+stats.pvp.wins+'</td><td>—</td></tr>';
   html+='</table></div>';
-  
   html+='<div class="stats-table"><table>';
   html+='<tr><th>По сложности</th><th>Всего</th><th>Побед</th><th>Поражений</th></tr>';
   html+='<tr><td>Лёгкий</td><td>'+stats.diff[1].total+'</td><td>'+stats.diff[1].wins+'</td><td>'+stats.diff[1].losses+'</td></tr>';
   html+='<tr><td>Средний</td><td>'+stats.diff[2].total+'</td><td>'+stats.diff[2].wins+'</td><td>'+stats.diff[2].losses+'</td></tr>';
   html+='<tr><td>Сложный</td><td>'+stats.diff[3].total+'</td><td>'+stats.diff[3].wins+'</td><td>'+stats.diff[3].losses+'</td></tr>';
   html+='</table></div>';
-  
   html+='<div class="stats-table"><table>';
   html+='<tr><th>По варианту</th><th>Всего</th><th>Побед</th><th>Поражений</th></tr>';
   html+='<tr><td>Обычные</td><td>'+stats.normal.total+'</td><td>'+stats.normal.wins+'</td><td>'+stats.normal.losses+'</td></tr>';
   html+='<tr><td>Поддавки</td><td>'+stats.giveaway.total+'</td><td>'+stats.giveaway.wins+'</td><td>'+stats.giveaway.losses+'</td></tr>';
   html+='</table></div>';
-  
   content.innerHTML=html;
 }
 
 function exportStats(){
   const stats=getStats();
-  const data=JSON.stringify({stats,exported:new Date().toISOString(),version:'1.0'},null,2);
+  const data=JSON.stringify({stats,exported:new Date().toISOString(),version:APP_BUILD.version,commit:APP_BUILD.commit},null,2);
   modal('<h3>Экспорт статистики</h3><p>Скопируйте текст ниже и сохраните:</p><textarea id="expTxt" readonly></textarea><div class="actions"><button class="btn primary" onclick="copyExport()">Копировать</button><button class="btn" onclick="downloadExport()">Скачать</button><button class="btn" onclick="closeModal()">Закрыть</button></div>');
   document.getElementById('expTxt').value=data;
 }
@@ -1098,21 +1056,67 @@ function doImportStats(){
 }
 
 function showAbout(){
-  modal('<h3>Шашки</h3><p>Версия 1.0<br>Разработчик: SKLN<br>© 2026<br><br>Русские шашки с вариантом «Поддавки». Поддерживается игра с компьютером (3 уровня сложности) и с другим игроком на одном устройстве.</p><div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');
+  const dateFormatted=formatDate(APP_BUILD.date);
+  modal('<h3>Шашки</h3>'+
+    '<p style="margin-bottom:8px"><b>Версия '+APP_BUILD.version+'</b></p>'+
+    '<p style="font-family:monospace;font-size:12px;background:var(--panel2);padding:8px;border-radius:6px;margin-bottom:12px">'+
+    'commit '+APP_BUILD.commit+'<br>'+dateFormatted+(APP_BUILD.time?' · '+APP_BUILD.time:'')+'</p>'+
+    '<p style="font-size:13px;font-style:italic;opacity:.7;margin-bottom:12px">'+APP_BUILD.message+'</p>'+
+    '<p style="font-size:13px">Разработчик: SKLN<br>© 2026<br><br>Русские шашки с вариантом «Поддавки». Поддерживается игра с компьютером (3 уровня сложности) и с другим игроком на одном устройстве.</p>'+
+    '<div class="actions"><button class="btn primary" onclick="closeModal()">OK</button></div>');
 }
 
 function clearData(){
   modal('<h3>Очистить данные?</h3><p>Все результаты будут удалены безвозвратно.</p><div class="actions"><button class="btn danger" onclick="results=[];saveResults();closeModal();show(\'menu\')">Удалить</button><button class="btn" onclick="closeModal()">Отмена</button></div>');
 }
 
+// ============ BUILD INFO HELPERS ============
+function formatDate(isoDate){
+  if(!isoDate)return '';
+  const parts=isoDate.split('-');
+  if(parts.length!==3)return isoDate;
+  const months=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const d=parseInt(parts[2],10);
+  const m=parseInt(parts[1],10);
+  const y=parts[0];
+  return d+' '+months[m-1]+' '+y;
+}
+
+function renderSplashVersion(){
+  const el=document.getElementById('splashVer');
+  if(!el)return;
+  const dateFormatted=formatDate(APP_BUILD.date);
+  el.innerHTML=
+    '2026 · v'+APP_BUILD.version+'<br>'+
+    '<span class="commit">commit '+APP_BUILD.commit+'</span>'+
+    (dateFormatted?'<div class="build-date">'+dateFormatted+(APP_BUILD.time?' · '+APP_BUILD.time:'')+'</div>':'');
+}
+
+function renderAboutVersion(){
+  const el=document.getElementById('aboutVer');
+  if(!el)return;
+  const dateFormatted=formatDate(APP_BUILD.date);
+  el.textContent='SKLN · '+dateFormatted+' · '+APP_BUILD.commit;
+}
+
 // ============ INIT ============
 window.addEventListener('resize',()=>{if(state&&!state.ended)render()});
+
+// Отображаем версию на заставке сразу
+renderSplashVersion();
+renderAboutVersion();
 
 setTimeout(()=>{show('menu')},10000);
 document.getElementById('splash').onclick=()=>show('menu');
 
 loadSettings();
 Sound.load();
+
+// Выводим версию в консоль для отладки
+console.log('%cШашки v'+APP_BUILD.version+' ('+APP_BUILD.commit+')',
+  'color:#e0a82e;font-size:14px;font-weight:bold');
+console.log('Build date: '+APP_BUILD.date+(APP_BUILD.time?' '+APP_BUILD.time:''));
+console.log('Message: '+APP_BUILD.message);
 
 // ============ PWA MANIFEST ============
 const iconSvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#1a1a1a"/><rect x="64" y="64" width="384" height="384" fill="#8b5a2b" rx="8"/><rect x="64" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="160" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="256" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="352" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="112" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="208" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="304" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="400" y="112" width="48" height="48" fill="#e8d4a2"/><circle cx="136" cy="136" r="18" fill="#fff"/><circle cx="232" cy="136" r="18" fill="#fff"/><circle cx="328" cy="136" r="18" fill="#fff"/><circle cx="424" cy="136" r="18" fill="#fff"/><circle cx="88" cy="88" r="18" fill="#000"/><circle cx="184" cy="88" r="18" fill="#000"/><circle cx="280" cy="88" r="18" fill="#000"/><circle cx="376" cy="88" r="18" fill="#000"/></svg>`;
