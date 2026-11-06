@@ -502,28 +502,42 @@ function countPieces(board,color){return board.filter(p=>p&&p.color===color).len
 // ============ AI ============
 const DEPTH={1:2,2:4,3:6};
 
+// Оценка позиции. Положительная = хорошо для белых.
 function evaluate(board,rule){
-  let w=0,b=0,wk=0,bk=0,wp=0,bp=0;
+  let wScore=0,bScore=0;
   for(let i=0;i<64;i++){
     const p=board[i];if(!p)continue;
-    const[r]=rc(i);
-    if(p.color==='w'){w++;if(p.king)wk++;else{wp+=(7-r)*0.1;}}
-    else{b++;if(p.king)bk++;else{bp+=r*0.1;}}
+    const val=p.king?3:1;
+    if(p.color==='w')wScore+=val;
+    else bScore+=val;
   }
-  const wScore=w+wk*2+wp;
-  const bScore=b+bk*2+bp;
-  if(rule==='giveaway')return bScore-wScore;
-  return wScore-bScore;
+  
+  if(rule==='giveaway'){
+    // ПОДАВКИ: цель — отдать все свои шашки.
+    // Для белых хорошо, когда у них МАЛО шашек, а у чёрных МНОГО.
+    return bScore - wScore;
+  }else{
+    // ОБЫЧНЫЕ: цель — сбить все шашки противника.
+    // Для белых хорошо, когда у них МНОГО шашек, а у чёрных МАЛО.
+    return wScore - bScore;
+  }
 }
 
 function minimax(board,depth,alpha,beta,color,rule,maximizing){
   const moves=getAllMoves(board,color);
   if(depth===0||moves.length===0){
     if(moves.length===0){
-      if(rule==='giveaway')return maximizing?1000:-1000;
-      return maximizing?-1000:1000;
+      // Партия окончена из-за отсутствия ходов.
+      if(rule==='giveaway'){
+        // В поддавках тот, кто не может ходить — ВЫИГРЫВАЕТ.
+        // maximizing=true означает, что сейчас ход белых.
+        return maximizing ? 1000 : -1000;
+      }else{
+        // В обычных тот, кто не может ходить — ПРОИГРЫВАЕТ.
+        return maximizing ? -1000 : 1000;
+      }
     }
-    return evaluate(board,rule)*(maximizing?1:-1);
+    return evaluate(board,rule);
   }
   const nextColor=color==='w'?'b':'w';
   if(maximizing){
@@ -556,16 +570,33 @@ function aiMove(board,color,level,rule){
   if(level===1&&Math.random()<0.3){
     return moves[Math.floor(Math.random()*moves.length)];
   }
-  let best=-Infinity,bestMove=null;
+  
+  const aiIsWhite=color==='w';
   const nextColor=color==='w'?'b':'w';
-  for(const m of moves){
-    const nb=applyMove(board,m.move);
-    const v=minimax(nb,depth-1,-Infinity,Infinity,nextColor,rule,false);
-    if(v>best||(v===best&&Math.random()<0.3)){
-      best=v;bestMove=m;
+  
+  if(aiIsWhite){
+    // AI за белых — максимизирует оценку (положительная = хорошо для белых)
+    let best=-Infinity,bestMove=null;
+    for(const m of moves){
+      const nb=applyMove(board,m.move);
+      const v=minimax(nb,depth-1,-Infinity,Infinity,nextColor,rule,false);
+      if(v>best||(v===best&&Math.random()<0.3)){
+        best=v;bestMove=m;
+      }
     }
+    return bestMove;
+  }else{
+    // AI за чёрных — минимизирует оценку (отрицательная = плохо для белых = хорошо для чёрных)
+    let best=Infinity,bestMove=null;
+    for(const m of moves){
+      const nb=applyMove(board,m.move);
+      const v=minimax(nb,depth-1,-Infinity,Infinity,nextColor,rule,true);
+      if(v<best||(v===best&&Math.random()<0.3)){
+        best=v;bestMove=m;
+      }
+    }
+    return bestMove;
   }
-  return bestMove;
 }
 
 // ============ GAME UI ============
@@ -655,7 +686,6 @@ function render(){
     board.appendChild(d);
   }
   
-  // ИСПРАВЛЕНО: используем m.move.path и m.move.captures
   for(const m of state.legalMoves){
     const to=m.move.path[m.move.path.length-1];
     const[r,c]=rc(to);
@@ -705,11 +735,9 @@ function onCellClick(r,c){
   const i=idx(r,c);
   const p=state.board[i];
   
-  // Клик по своей шашке — выбираем её
   if(p&&((state.mode==='pvp'&&p.color===state.turn)||(state.mode==='ai'&&p.color===state.playerColor))){
     const moves=getAllMoves(state.board,state.turn).filter(m=>m.from===i);
     if(moves.length===0){
-      // У этой шашки нет ходов — снимаем выделение
       state.selected=null;
       state.legalMoves=[];
       render();
@@ -722,13 +750,11 @@ function onCellClick(r,c){
     return;
   }
   
-  // Клик по пустой клетке или клетке с чужой шашкой — пытаемся сделать ход
   if(state.selected!==null){
     const move=state.legalMoves.find(m=>m.move.path[m.move.path.length-1]===i);
     if(move){
       doMove(move);
     }else{
-      // Клик в недопустимое место — снимаем выделение
       state.selected=null;
       state.legalMoves=[];
       render();
@@ -737,7 +763,6 @@ function onCellClick(r,c){
 }
 
 function doMove(moveEntry){
-  // moveEntry = {from, move}
   const move=moveEntry.move;
   state.history.push({board:state.board.slice(),turn:state.turn});
   state.board=applyMove(state.board,move);
@@ -777,14 +802,29 @@ function checkEnd(){
   let winner=null,reason='';
   
   if(state.rule==='normal'){
-    if(moves.length===0){
+    // ОБЫЧНЫЕ ШАШКИ: проигрывает тот, у кого нет шашек или нет ходов
+    if(wc===0){
+      winner='b';
+      reason='Белые потеряли все шашки';
+    }else if(bc===0){
+      winner='w';
+      reason='Чёрные потеряли все шашки';
+    }else if(moves.length===0){
       winner=state.turn==='w'?'b':'w';
-      reason='Нет ходов';
-    }else if(wc===0){winner='b';reason='Шашки сбиты';}
-    else if(bc===0){winner='w';reason='Шашки сбиты';}
+      reason=(state.turn==='w'?'Белые':'Чёрные')+' не могут ходить';
+    }
   }else{
-    if(wc===0||(moves.length===0&&state.turn==='w')){winner='b';reason=wc===0?'Шашки сбиты':'Нет ходов';}
-    else if(bc===0||(moves.length===0&&state.turn==='b')){winner='w';reason=bc===0?'Шашки сбиты':'Нет ходов';}
+    // ПОДАВКИ: выигрывает тот, кто отдал все шашки или не может ходить
+    if(wc===0){
+      winner='w';
+      reason='Белые отдали все шашки';
+    }else if(bc===0){
+      winner='b';
+      reason='Чёрные отдали все шашки';
+    }else if(moves.length===0){
+      winner=state.turn;
+      reason=(state.turn==='w'?'Белые':'Чёрные')+' не могут ходить';
+    }
   }
   
   if(winner){
@@ -804,9 +844,26 @@ function checkEnd(){
     
     let msg;
     if(state.mode==='pvp'){
-      msg='Победили '+(winner==='w'?'белые':'чёрные')+'!<br><small>'+reason+'</small>';
+      const winnerName=winner==='w'?'белые':'чёрные';
+      if(state.rule==='giveaway'){
+        msg='Победили '+winnerName+'!<br><small>'+reason+'</small>';
+      }else{
+        msg='Победили '+winnerName+'!<br><small>'+reason+'</small>';
+      }
     }else{
-      msg=(result.playerWon?'Вы победили! 🎉':'Вы проиграли<br><small>Попробуйте ещё раз</small>')+'<br><small>'+reason+'</small>';
+      if(result.playerWon){
+        if(state.rule==='giveaway'){
+          msg='Вы победили! 🎉<br><small>Вы успешно отдали все шашки</small>';
+        }else{
+          msg='Вы победили! 🎉<br><small>'+reason+'</small>';
+        }
+      }else{
+        if(state.rule==='giveaway'){
+          msg='Вы проиграли<br><small>Компьютер отдал все шашки раньше вас</small>';
+        }else{
+          msg='Вы проиграли<br><small>'+reason+'</small>';
+        }
+      }
     }
     setTimeout(()=>{
       modal('<h3>Партия окончена</h3><p>'+msg+'</p><div class="actions"><button class="btn primary" onclick="closeModal();startGame()">Новая партия</button><button class="btn" onclick="closeModal();show(\'menu\')">В меню</button></div>');
