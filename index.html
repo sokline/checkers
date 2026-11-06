@@ -267,14 +267,13 @@ textarea{width:100%;min-height:120px;background:var(--panel2);color:var(--fg);bo
 <script>
 // ============================================================
 // ИНФОРМАЦИЯ О СБОРКЕ
-// Обновляйте эти значения при каждом коммите
 // ============================================================
 const APP_BUILD = {
   version: '1.0',
-  commit:  'a7f3c2e',       // короткий хеш коммита
-  date:    '2026-11-07',    // дата коммита (ГГГГ-ММ-ДД)
-  time:    '14:30',         // время коммита (ЧЧ:ММ)
-  message: 'Добавлена версия и дата коммита на заставку'
+  commit:  'a7f3c2e',
+  date:    '2026-11-07',
+  time:    '14:30',
+  message: 'Исправлена отмена хода и добавлена версия на заставку'
 };
 // ============================================================
 
@@ -848,24 +847,40 @@ function checkEnd(){
 
 function undoMove(){
   if(state.history.length===0||state.aiThinking)return;
+  
+  // ИСПРАВЛЕНО: сбрасываем ended если игра была завершена
+  if(state.ended){
+    state.ended=false;
+    // Удаляем последний результат из истории
+    if(results.length>0){
+      results.shift();
+      saveResults();
+    }
+  }
+  
   if(state.mode==='ai'){
-    if(state.history.length>=2&&state.history[state.history.length-1].turn===state.playerColor){
-      state.history.pop();
-      const prev=state.history.pop();
+    // В режиме с AI откатываем 2 хода (ход игрока + ход AI)
+    if(state.history.length>=2){
+      state.history.pop(); // Ход AI
+      const prev=state.history.pop(); // Ход игрока
       state.board=prev.board;
       state.turn=prev.turn;
-    }else{
+    }else if(state.history.length===1){
+      // Если только 1 ход в истории (например, первый ход)
       const prev=state.history.pop();
       state.board=prev.board;
       state.turn=prev.turn;
     }
   }else{
+    // В режиме PvP откатываем 1 ход
     const prev=state.history.pop();
     state.board=prev.board;
     state.turn=prev.turn;
   }
+  
   state.selected=null;
   state.legalMoves=[];
+  state.moveCount=Math.max(0,state.moveCount-(state.mode==='ai'?2:1));
   render();
 }
 
@@ -1084,12 +1099,16 @@ function formatDate(isoDate){
 
 function renderSplashVersion(){
   const el=document.getElementById('splashVer');
-  if(!el)return;
+  if(!el){
+    console.warn('Element #splashVer not found');
+    return;
+  }
   const dateFormatted=formatDate(APP_BUILD.date);
   el.innerHTML=
     '2026 · v'+APP_BUILD.version+'<br>'+
     '<span class="commit">commit '+APP_BUILD.commit+'</span>'+
     (dateFormatted?'<div class="build-date">'+dateFormatted+(APP_BUILD.time?' · '+APP_BUILD.time:'')+'</div>':'');
+  console.log('Splash version rendered:',el.innerHTML);
 }
 
 function renderAboutVersion(){
@@ -1102,21 +1121,28 @@ function renderAboutVersion(){
 // ============ INIT ============
 window.addEventListener('resize',()=>{if(state&&!state.ended)render()});
 
-// Отображаем версию на заставке сразу
-renderSplashVersion();
-renderAboutVersion();
+// Ждем загрузки DOM
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init);
+}else{
+  init();
+}
 
-setTimeout(()=>{show('menu')},10000);
-document.getElementById('splash').onclick=()=>show('menu');
-
-loadSettings();
-Sound.load();
-
-// Выводим версию в консоль для отладки
-console.log('%cШашки v'+APP_BUILD.version+' ('+APP_BUILD.commit+')',
-  'color:#e0a82e;font-size:14px;font-weight:bold');
-console.log('Build date: '+APP_BUILD.date+(APP_BUILD.time?' '+APP_BUILD.time:''));
-console.log('Message: '+APP_BUILD.message);
+function init(){
+  console.log('Initializing app...');
+  renderSplashVersion();
+  renderAboutVersion();
+  loadSettings();
+  Sound.load();
+  
+  setTimeout(()=>{show('menu')},10000);
+  document.getElementById('splash').onclick=()=>show('menu');
+  
+  console.log('%cШашки v'+APP_BUILD.version+' ('+APP_BUILD.commit+')',
+    'color:#e0a82e;font-size:14px;font-weight:bold');
+  console.log('Build date: '+APP_BUILD.date+(APP_BUILD.time?' '+APP_BUILD.time:''));
+  console.log('Message: '+APP_BUILD.message);
+}
 
 // ============ PWA MANIFEST ============
 const iconSvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#1a1a1a"/><rect x="64" y="64" width="384" height="384" fill="#8b5a2b" rx="8"/><rect x="64" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="160" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="256" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="352" y="64" width="48" height="48" fill="#e8d4a2"/><rect x="112" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="208" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="304" y="112" width="48" height="48" fill="#e8d4a2"/><rect x="400" y="112" width="48" height="48" fill="#e8d4a2"/><circle cx="136" cy="136" r="18" fill="#fff"/><circle cx="232" cy="136" r="18" fill="#fff"/><circle cx="328" cy="136" r="18" fill="#fff"/><circle cx="424" cy="136" r="18" fill="#fff"/><circle cx="88" cy="88" r="18" fill="#000"/><circle cx="184" cy="88" r="18" fill="#000"/><circle cx="280" cy="88" r="18" fill="#000"/><circle cx="376" cy="88" r="18" fill="#000"/></svg>`;
