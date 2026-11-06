@@ -1,0 +1,20 @@
+{
+  "name": "Шашки",
+  "short_name": "Шашки",
+  "description": "Русские шашки с вариантом Поддавки. Разработчик SKLN, 2026",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzFhMWExYSIvPjxyZWN0IHg9IjY0IiB5PSI2NCIgd2lkdGg9IjM4NCIgaGVpZ2h0PSIzODQiIGZpbGw9IiM4YjVhMmIiIHJ4PSI4Ii8+PGNpcmNsZSBjeD0iMTYwIiBjeT0iMTYwIiByPSI0MCIgZmlsbD0iI2ZmZiIvPjxjaXJjbGUgY3g9IjM1MiIgY3k9IjE2MCIgcj0iNDAiIGZpbGw9IiMwMDAiLz48Y2lyY2xlIGN4PSIxNjAiIGN5PSIzNTIiIHI9IjQwIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMzUyIiBjeT0iMzUyIiByPSI0MCIgZmlsbD0iIzAwMCIvPjwvc3ZnPg==",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
