@@ -1,51 +1,88 @@
 // Service Worker для офлайн-работы приложения "Шашки"
-const CACHE_VERSION = 'checkers-v1.1';
+const CACHE_NAME = 'checkers-v1.1';
 
+// Список файлов для кэширования
+const FILES_TO_CACHE = [
+  './',
+  './index.html',
+  './manifest.json',
+  './sw.js'
+];
+
+// Установка: кэшируем все файлы
 self.addEventListener('install', event => {
   console.log('[SW] Installing...');
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('[SW] Caching files...');
+        return cache.addAll(FILES_TO_CACHE);
+      })
+      .then(() => self.skipWaiting())
+      .catch(err => {
+        console.error('[SW] Cache failed:', err);
+      })
+  );
 });
 
+// Активация: удаляем старые кэши
 self.addEventListener('activate', event => {
   console.log('[SW] Activating...');
-  // Удаляем старые кэши
   event.waitUntil(
-    caches.keys().then(keys => {
+    caches.keys().then(cacheNames => {
       return Promise.all(
-        keys.filter(key => key !== CACHE_VERSION).map(key => caches.delete(key))
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
       );
     }).then(() => self.clients.claim())
   );
 });
 
+// Обработка запросов: Cache-First стратегия
 self.addEventListener('fetch', event => {
   // Обрабатываем только GET-запросы
   if (event.request.method !== 'GET') return;
   
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      // Сначала пытаемся взять из кэша
-      if (cached) return cached;
-      
-      // Если нет в кэше — идём в сеть
-      return fetch(event.request).then(response => {
-        // Не кэшируем неудачные ответы
-        if (!response || response.status !== 200) return response;
-        
-        // Кэшируем успешный ответ
-        const clone = response.clone();
-        caches.open(CACHE_VERSION).then(cache => {
-          cache.put(event.request, clone);
-        });
-        
-        return response;
-      }).catch(() => {
-        // Если сеть недоступна и нет в кэше — возвращаем главную страницу
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
+    caches.match(event.request)
+      .then(cachedResponse => {
+        // Если есть в кэше — возвращаем из кэша
+        if (cachedResponse) {
+          return cachedResponse;
         }
-        return new Response('Offline', { status: 503 });
-      });
-    })
+        
+        // Если нет в кэше — идём в сеть
+        return fetch(event.request)
+          .then(networkResponse => {
+            // Не кэшируем неудачные ответы
+            if (!networkResponse || networkResponse.status !== 200) {
+              return networkResponse;
+            }
+            
+            // Кэшируем успешный ответ
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+            
+            return networkResponse;
+          })
+          .catch(error => {
+            console.error('[SW] Fetch failed:', error);
+            // Если сеть недоступна и нет в кэше — возвращаем главную страницу
+            if (event.request.mode === 'navigate') {
+              return caches.match('./');
+            }
+            return new Response('Offline', { 
+              status: 503, 
+              statusText: 'Service Unavailable' 
+            });
+          });
+      })
   );
 });
