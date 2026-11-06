@@ -1098,18 +1098,48 @@ function init(){
   
   // Регистрация Service Worker
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js')
+    navigator.serviceWorker.register('./sw.js')
       .then(reg=>{
-        console.log('[SW] Registered:', reg.scope);
-        // Проверка обновлений
-        reg.update();
+        console.log('%c[SW] Registered successfully','color:#27ae60;font-weight:bold');
+        console.log('[SW] Scope:', reg.scope);
+        console.log('[SW] Active worker:', reg.active ? 'Yes' : 'No');
+        
+        // Проверяем обновления
+        reg.update().then(()=>{
+          console.log('[SW] Update check completed');
+        });
+        
+        // Слушаем обновления
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          console.log('[SW] Update found, installing...');
+          
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') {
+              console.log('[SW] New version activated');
+              // Можно показать уведомление пользователю
+            }
+          });
+        });
       })
-      .catch(err=>console.warn('[SW] Registration failed:', err));
+      .catch(err=>{
+        console.error('%c[SW] Registration failed:','color:#c0392b;font-weight:bold', err);
+      });
+    
+    // Контролируем ли мы страницу?
+    if(navigator.serviceWorker.controller){
+      console.log('%c[SW] Page is controlled by Service Worker','color:#27ae60');
+    }else{
+      console.warn('[SW] Page is NOT controlled by Service Worker (reload needed)');
+    }
+  }else{
+    console.warn('[SW] Service Worker not supported in this browser');
   }
   
   console.log('%cШашки v'+APP_BUILD.version+' ('+APP_BUILD.commit+')',
     'color:#e0a82e;font-size:14px;font-weight:bold');
   console.log('Message: '+APP_BUILD.message);
+  console.log('%cДля проверки офлайн-режима: откройте DevTools → Application → Service Workers → Offline','color:#3498db');
 }
 </script>
 </body>
